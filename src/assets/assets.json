@@ -29,7 +29,9 @@
         "src": "raw_assets/images",
         "out": "src/assets/images",
         "files": {
-            "asphalt": "asphalt.jpg"
+            "asphalt": "asphalt.jpg",
+            "markingDash": "marking_dash.png",
+            "markingEdge": "marking_edge.png"
         }
     },
     "sounds": {

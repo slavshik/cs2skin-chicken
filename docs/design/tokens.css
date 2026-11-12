@@ -47,8 +47,9 @@
     --car-gold: #b18119;
     --car-magenta: #de3db2;
     --car-violet: var(--primary-500);
-    --road-asphalt: #41444a;
-    --road-dash: #eceef0;
+    --road-asphalt: #2c2c2d;
+    --road-dash: #ececec;
+    --road-edge: #e0a21b;
     --road-curb: #7c8189;
     --manhole: #2b3646;
     --manhole-groove: #1c2532;

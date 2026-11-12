@@ -27,11 +27,12 @@ const TRAFFIC = {
 /** The next lane is kept at this share of the board width. */
 const FOCUS = 0.35;
 /**
- * Road markings, white paint as on a real road: dashed lines between lanes, solid lines along
- * both edges, inset from the kerb. Px; dashes line up across lanes.
+ * Road markings, worn paint as on a real road: white dashed lines between lanes, solid yellow
+ * lines along both edges, inset from the kerb. Each is a vertically tiling texture
+ * (raw_assets/images/marking_*.png, 2×) as wide as the line; dashes line up across lanes.
  */
-const MARKING = { width: 4, dash: 28, gap: 24, edgeInset: 6 } as const;
-/** The asphalt texture is authored at 2× (raw_assets/images/asphalt.jpg). */
+const MARKING = { width: 6, edgeInset: 8 } as const;
+/** Road textures (raw_assets/images: asphalt, markings) are authored at 2×. */
 const ASPHALT_RESOLUTION = 2;
 /** The chicken's size against its art (raw_assets/game/chicken.png). */
 const CHICKEN_SIZE = 1.35;
@@ -73,7 +74,7 @@ export class BoardView extends View {
     private readonly asphalt = new TilingSprite({
         texture: di.get<Sprite>(Picture.asphalt).texture,
     });
-    private readonly markings = new Graphics();
+    private readonly markings = new Container();
     private readonly lanesLayer = new Container();
     private readonly traffic = new Container();
     private readonly splat = new Container();
@@ -492,16 +493,22 @@ export class BoardView extends View {
     }
 
     private drawMarkings(end: number): void {
-        const { width, dash, gap, edgeInset } = MARKING;
-        const paint = COLOR['road-dash'];
-        const g = this.markings.clear();
-        g.rect(CURB + edgeInset, 0, width, this.h).fill(paint);
-        g.rect(end - edgeInset - width, 0, width, this.h).fill(paint);
+        const { width, edgeInset } = MARKING;
+        for (const line of this.markings.removeChildren()) line.destroy();
+        const line = (picture: string, x: number): void => {
+            const sprite = new TilingSprite({
+                texture: di.get<Sprite>(picture).texture,
+                width,
+                height: this.h,
+            });
+            sprite.tileScale.set(1 / ASPHALT_RESOLUTION);
+            sprite.x = x;
+            this.markings.addChild(sprite);
+        };
+        line(Picture.markingEdge, CURB + edgeInset);
+        line(Picture.markingEdge, end - edgeInset - width);
         for (let i = 1; i < this.lanes.length; i++) {
-            const x = CURB + i * this.laneW - width / 2;
-            for (let y = gap / 2; y < this.h; y += dash + gap) {
-                g.rect(x, y, width, Math.min(dash, this.h - y)).fill(paint);
-            }
+            line(Picture.markingDash, CURB + i * this.laneW - width / 2);
         }
     }
 

@@ -14,7 +14,7 @@ One vertical road lane. Cars drive top to bottom, and a manhole cover sits mid-l
 
 - Only the **next** lane is interactive. Tapping further ahead does nothing (optionally a small shake).
 - Cars use the `car-*` palette and only appear in locked lanes. A cleared lane never shows a car, because the barrier visually stops it.
-- The road is one rough grey asphalt (texture `raw_assets/images/asphalt.jpg` over `road-asphalt`), the same for every lane. Markings are white paint (`road-dash`), as on a real road: 4px dashed lines (28 on, 24 off) between lanes, solid lines along both edges, inset 6px from the concrete kerb (`road-curb`).
+- The road is near-black asphalt with a fine grain (`raw_assets/images/asphalt.jpg`, `road-asphalt`), the same for every lane. Markings are gritty, worn paint like a real road: white dashed lines between lanes (`marking_dash.png`, `road-dash`, 6px, 44 on / 28 off) and solid yellow lines along both edges (`marking_edge.png`, `road-edge`), inset 8px from the concrete kerb (`road-curb`).
 - The lane-counter badge (`.ccr-badge-lane`, top right, `grass-400`) shows progress: _Lane 5_.
 - `lane-width` is 120px (80px on mobile). The board scrolls horizontally so the next lane stays at about 35% from the left.
 - The CSS chicken, car, coin and barrier shapes are layout placeholders. Ship sprite or Spine art in the README's art style.

@@ -12,6 +12,13 @@ import { SettleAction } from './SettleAction.ts';
  */
 @injectable()
 export class StepAction extends Action<RoundContext, void> {
+    private readonly demoWin: boolean;
+
+    constructor(demoWin = false) {
+        super();
+        this.demoWin = demoWin;
+    }
+
     async execute(context: RoundContext): Promise<void> {
         const { server, model, board } = context;
         if (model.phase !== 'live' || !model.roundId) return;
@@ -20,7 +27,7 @@ export class StepAction extends Action<RoundContext, void> {
         this.dispatch(AppEvents.MODEL_CHANGED);
         let result: StepResult;
         try {
-            result = await server.step(model.roundId);
+            result = await server.step(model.roundId, { demoWin: this.demoWin });
         } catch (error) {
             model.error = errorText(error);
             model.phase = 'live';

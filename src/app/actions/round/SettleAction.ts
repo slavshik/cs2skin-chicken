@@ -11,9 +11,10 @@ export class SettleAction extends Action<RoundContext & { settlement: Settlement
     async execute({ model, settlement }: RoundContext & { settlement: Settlement }): Promise<void> {
         const { seed, hitLane } = settlement.reveal;
         const verified =
+            !settlement.assisted &&
             !!model.seedHash &&
             (await verifyRound(model.difficulty, model.seedHash, seed, hitLane));
-        if (!verified)
+        if (!verified && !settlement.assisted)
             console.warn('[fairness] the server revealed a seed that does not match', settlement);
         model.settled(settlement, verified);
         this.dispatch(AppEvents.MODEL_CHANGED);

@@ -35,6 +35,7 @@ interface Round {
     seed: string;
     hitLane: number;
     step: number;
+    assisted: boolean;
 }
 
 export class ServerError extends Error {
@@ -75,6 +76,7 @@ export class MockServer implements GameServer {
                 seed,
                 hitLane: hitLaneFor(difficulty, seed),
                 step: 0,
+                assisted: false,
             };
             return {
                 roundId: this.round.id,
@@ -85,11 +87,13 @@ export class MockServer implements GameServer {
         });
     }
 
-    step(roundId: string): Promise<StepResult> {
+    step(roundId: string, request?: { demoWin?: boolean }): Promise<StepResult> {
+        const demoWin = request?.demoWin === true;
         return this.reply((): StepResult => {
             const round = this.openRoundById(roundId);
             const lane = round.step + 1;
-            if (lane === round.hitLane)
+            if (demoWin) round.assisted = true;
+            if (lane === round.hitLane && !demoWin)
                 return { outcome: 'hit', lane, settlement: this.settle(round, false) };
             round.step = lane;
             const mult = multiplier(round.difficulty, lane);
@@ -130,6 +134,7 @@ export class MockServer implements GameServer {
         this.round = undefined;
         return {
             won,
+            assisted: round.assisted,
             mult,
             paid,
             bet: round.bet,

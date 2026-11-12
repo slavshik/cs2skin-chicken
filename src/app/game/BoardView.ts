@@ -131,7 +131,7 @@ export class BoardView extends View {
         for (const lane of this.lanes) lane.destroy();
         this.lanes = Array.from({ length: lanes }, (_, i) => {
             const lane = new LaneView(multiplier(difficulty, i + 1));
-            lane.on(LaneView.TAP, () => this.emit(BoardView.LANE_TAP));
+            lane.on(LaneView.TAP, (demoWin: boolean) => this.emit(BoardView.LANE_TAP, demoWin));
             this.lanesLayer.addChild(lane);
             return lane;
         });

@@ -5,7 +5,7 @@
  * HTTP. Money in cents, multipliers in hundredths.
  *
  * The server decides every outcome. The client never learns where the car is until it hits or
- * the round ends, so there is nothing in the page to cheat with.
+ * the round ends, so normal replies do not expose future outcomes. The in-page mock is not a security boundary.
  */
 import type { Difficulty } from '../game/rules.ts';
 
@@ -31,6 +31,8 @@ export interface Reveal {
 /** A finished round. */
 export interface Settlement {
     won: boolean;
+    /** Demo override was used; this outcome is not covered by the seed commitment. */
+    assisted: boolean;
     /** The multiplier paid, or the one lost on the hit lane. */
     mult: number;
     paid: number;
@@ -53,7 +55,7 @@ export type ServerErrorCode =
 export interface GameServer {
     session(): Promise<Session>;
     openRound(request: { bet: number; difficulty: Difficulty }): Promise<RoundOpened>;
-    step(roundId: string): Promise<StepResult>;
+    step(roundId: string, request?: { demoWin?: boolean }): Promise<StepResult>;
     cashOut(roundId: string): Promise<Settlement>;
     /** Demo only: refills a wallet that can't cover the minimum bet. */
     refill(): Promise<Session>;

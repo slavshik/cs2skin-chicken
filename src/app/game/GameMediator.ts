@@ -60,8 +60,8 @@ export class GameMediator extends Mediator<GameScreen> {
         if (this.model.phase === 'idle') void this.run(new PlaceBetAction());
     }
 
-    private onStep(): void {
-        if (this.model.phase === 'live') void this.run(new StepAction());
+    private onStep(demoWin = false): void {
+        if (this.model.phase === 'live') void this.run(new StepAction(demoWin === true));
     }
 
     private onCashOut(): void {

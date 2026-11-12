@@ -1,5 +1,5 @@
 import { gsap } from 'gsap';
-import { type BitmapText, Container, Graphics } from 'pixi.js';
+import { type FederatedPointerEvent, type BitmapText, Container, Graphics } from 'pixi.js';
 import { formatMultShort } from '../../game/format.ts';
 import { Frame } from '../assets.ts';
 import { art } from '../ui/art.ts';
@@ -38,8 +38,8 @@ export class LaneView extends Container {
             .roundRect(-this.text.width / 2 - 5, -9, this.text.width + 10, 18, 4)
             .fill(COLOR.manhole);
         this.hole.addChild(this.ring, art(Frame.manhole), plate, this.text);
-        this.hole.on('pointertap', () => {
-            if (this.state === 'next') this.emit(LaneView.TAP);
+        this.hole.on('pointertap', (event: FederatedPointerEvent) => {
+            if (this.state === 'next') this.emit(LaneView.TAP, event.shiftKey);
         });
         this.coin.visible = false;
         this.barrier.visible = false;

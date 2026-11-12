@@ -20,9 +20,12 @@ export default defineConfig({
         target: 'es2020',
         rollupOptions: {
             output: {
-                // React ships as its own chunk, apart from Pixi and the game.
-                manualChunks: (id) =>
-                    /node_modules\/(react|react-dom|scheduler)\//.test(id) ? 'react' : undefined,
+                // React and GSAP ship as their own chunks, apart from Pixi and the game.
+                manualChunks: (id) => {
+                    if (/node_modules\/(react|react-dom|scheduler)\//.test(id)) return 'react';
+                    if (/node_modules\/gsap\//.test(id)) return 'gsap';
+                    return undefined;
+                },
             },
         },
     },

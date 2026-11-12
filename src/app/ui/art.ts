@@ -94,3 +94,82 @@ export function drawBarrier(): Graphics {
     g.roundRect(-42, -44, 84, 28, 6).stroke({ width: 2, ...COLOR['sun-700'] });
     return g;
 }
+
+/**
+ * Blood splat left where the chicken was hit; origin at its centre.
+ * Irregular core, lobes and flung droplets reaching `width` edge to edge.
+ */
+export function drawBloodSplat(width: number): Graphics {
+    const g = new Graphics();
+    const r = width / 2;
+    const squash = 0.8;
+    const rand = (min: number, max: number): number => min + Math.random() * (max - min);
+    const core = (scale: number): number[] => {
+        const points: number[] = [];
+        const n = 22;
+        for (let i = 0; i < n; i++) {
+            const a = (i / n) * Math.PI * 2;
+            const d = r * scale * rand(0.75, 1.05);
+            points.push(Math.cos(a) * d, Math.sin(a) * d * squash);
+        }
+        return points;
+    };
+    const lobes = Array.from({ length: 8 }, (_, i) => {
+        const a = (i / 8) * Math.PI * 2 + rand(-0.3, 0.3);
+        const d = r * rand(0.42, 0.6);
+        return { x: Math.cos(a) * d, y: Math.sin(a) * d * squash, size: r * rand(0.12, 0.22) };
+    });
+    const drops = [
+        { a: 0, d: 0.94 },
+        { a: Math.PI, d: 0.94 },
+        ...Array.from({ length: 10 }, () => ({ a: rand(0, Math.PI * 2), d: rand(0.68, 0.92) })),
+    ].map(({ a, d }) => ({
+        x: Math.cos(a) * r * d,
+        y: Math.sin(a) * r * d * squash,
+        size: r * rand(0.03, 0.06),
+    }));
+
+    // dark rim under everything, the wet body, then a lighter sheen
+    g.poly(core(0.6)).fill(COLOR['blood-800']);
+    for (const l of lobes) g.circle(l.x, l.y + 2, l.size * 1.1).fill(COLOR['blood-800']);
+    g.poly(core(0.55)).fill(COLOR['blood-600']);
+    for (const l of lobes) g.circle(l.x, l.y, l.size).fill(COLOR['blood-600']);
+    for (const d of drops) g.circle(d.x, d.y, d.size).fill(COLOR['blood-600']);
+    g.poly(core(0.3)).fill({ color: COLOR['blood-500'].color, alpha: 0.6 });
+    return g;
+}
+
+/** Win sunburst: rotating rays around a warm core; origin at its centre, `radius` to the ray tips. */
+export function drawSunburst(radius: number, rays = 14): Graphics {
+    const g = new Graphics();
+    const half = Math.PI / rays / 2;
+    for (let i = 0; i < rays; i++) {
+        const a = (i / rays) * Math.PI * 2;
+        g.poly([
+            0,
+            0,
+            Math.cos(a - half) * radius,
+            Math.sin(a - half) * radius,
+            Math.cos(a + half) * radius,
+            Math.sin(a + half) * radius,
+        ]).fill({ color: COLOR['sun-300'].color, alpha: 0.22 });
+    }
+    g.circle(0, 0, radius * 0.42).fill({ color: COLOR['sun-500'].color, alpha: 0.22 });
+    g.circle(0, 0, radius * 0.24).fill({ color: COLOR['sun-300'].color, alpha: 0.35 });
+    return g;
+}
+
+/** Four-point twinkle, white so it can be tinted; origin at its centre, `size` to each tip. */
+export function drawSparkle(size: number): Graphics {
+    const t = size * 0.22;
+    const g = new Graphics();
+    g.poly([0, -size, t, -t, size, 0, t, t, 0, size, -t, t, -size, 0, -t, -t]).fill(
+        COLOR['text-title'],
+    );
+    return g;
+}
+
+/** Shockwave ring, white so it can be tinted; origin at its centre. */
+export function drawRing(radius: number, width: number): Graphics {
+    return new Graphics().circle(0, 0, radius).stroke({ width, ...COLOR['text-title'] });
+}

@@ -2,7 +2,16 @@ import { gsap } from 'gsap';
 import { Container, Graphics } from 'pixi.js';
 import { View } from '@dp-instant/2d/View.ts';
 import { type Difficulty, multiplier } from '../../game/rules.ts';
-import { CAR_COLORS, drawCar, drawChicken, drawCoin } from '../ui/art.ts';
+import {
+    CAR_COLORS,
+    drawBloodSplat,
+    drawCar,
+    drawChicken,
+    drawCoin,
+    drawRing,
+    drawSparkle,
+    drawSunburst,
+} from '../ui/art.ts';
 import { COLOR, SIZE } from '../ui/tokens.ts';
 import { laneCenterY, LaneView } from './LaneView.ts';
 
@@ -13,6 +22,14 @@ const FINISH = 120;
 const CAR_SPEED: Record<Difficulty, number> = { easy: 1.7, medium: 1.4, hard: 1.1, hardcore: 0.85 };
 /** The next lane is kept at this share of the board width. */
 const FOCUS = 0.35;
+/** The blood splat left by a crash spans this many lanes. */
+const SPLAT_LANES = 1.5;
+/** Crash shake: peak offset in px, a hair of roll in radians, and how long it rings out. */
+const SHAKE = { offset: 9, roll: 0.008, duration: 0.45 };
+/** Win sequence: rays radius, fountain coins, sparkles, and the zoom punch. */
+const WIN = { rays: 230, coins: 26, sparkles: 14, zoom: 1.05, hold: 1.15 };
+/** Chicken's body centre above its feet. */
+const BODY = 28;
 const REDUCED_MOTION = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
 interface Car {
@@ -32,11 +49,17 @@ const play = (timeline: gsap.core.Timeline): Promise<void> =>
 export class BoardView extends View {
     static readonly LANE_TAP = 'laneTap';
 
+    /** Everything that moves as one when the world shakes or zooms; pivots on the board centre. */
+    private readonly camera = new Container();
     private readonly track = new Container();
     private readonly ground = new Graphics();
     private readonly lanesLayer = new Container();
     private readonly traffic = new Container();
+    private readonly splat = new Container();
+    private readonly halo = new Container();
     private readonly fx = new Container();
+    /** Screen-space effects (coin rain) over the world. */
+    private readonly rain = new Container();
     private readonly chicken = drawChicken();
     private readonly flash = new Graphics();
 
@@ -44,16 +67,29 @@ export class BoardView extends View {
     private cars: Car[] = [];
     private difficulty: Difficulty = 'easy';
     private step = 0;
+    /** Lane of the current round's crash splat, 0 when there is none. */
+    private splatLane = 0;
     private live = false;
     private w = 0;
     private h = 0;
     private laneW: number = SIZE['lane-width'];
     private spawner?: gsap.core.Tween;
+    private shakeTween?: gsap.core.Tween;
+    private winTimeline?: gsap.core.Timeline;
 
     constructor() {
         super();
-        this.track.addChild(this.ground, this.lanesLayer, this.chicken, this.traffic, this.fx);
-        this.addChild(this.track, this.flash);
+        this.track.addChild(
+            this.ground,
+            this.lanesLayer,
+            this.splat,
+            this.halo,
+            this.chicken,
+            this.traffic,
+            this.fx,
+        );
+        this.camera.addChild(this.track);
+        this.addChild(this.camera, this.rain, this.flash);
         this.flash.alpha = 0;
     }
 
@@ -101,6 +137,8 @@ export class BoardView extends View {
         this.live = false;
         this.step = 0;
         this.clearTraffic();
+        this.clearSplat();
+        this.clearWin();
         gsap.killTweensOf([this.chicken, this.chicken.scale]);
         this.chicken.scale.set(1);
         this.chicken.alpha = 1;
@@ -156,6 +194,7 @@ export class BoardView extends View {
         tl.to(car, { y: this.chickenY() - 30, duration: 0.32, ease: 'power2.in' })
             .addLabel('hit')
             .call(() => this.impact(), [], 'hit')
+            .call(() => this.spill(lane), [], 'hit')
             .to(this.chicken.scale, { x: 1.35, y: 0.22, duration: 0.08 }, 'hit')
             .to(this.chicken, { alpha: 0.6, duration: 0.2 }, 'hit')
             .to(car, { y: this.h + 80, duration: 0.4, ease: 'power1.out' }, 'hit')
@@ -164,43 +203,222 @@ export class BoardView extends View {
         return play(tl);
     }
 
-    /** Cash-out: the chicken jumps for joy under a burst of coins. */
+    /**
+     * Cash-out: a golden flash and a zoom punch, rays spin up behind the chicken, a shockwave
+     * rolls out, a coin fountain bursts from it, coins rain across the screen and sparkles
+     * twinkle while the chicken hops for joy. Resolves once the hops land; the rest plays out
+     * behind the bet popup.
+     */
     celebrate(): Promise<void> {
-        const { x, y } = this.chicken.position;
-        const tl = gsap.timeline();
-        tl.to(
-            this.chicken,
-            { y: y - 30, duration: 0.18, ease: 'power2.out', yoyo: true, repeat: 3 },
+        this.clearWin();
+        const x = this.chicken.x;
+        const y = this.chicken.y - BODY;
+        const tl = (this.winTimeline = gsap.timeline());
+
+        this.flashOnce(COLOR['sun-300'].color, 0.45, 0.5);
+
+        // rays behind the chicken
+        const rays = drawSunburst(WIN.rays);
+        rays.position.set(x, y);
+        rays.scale.set(0);
+        this.halo.addChild(rays);
+        tl.to(rays.scale, { x: 1, y: 1, duration: 0.45, ease: 'back.out(1.6)' }, 0)
+            .to(rays, { rotation: Math.PI * 0.6, duration: 2.2, ease: 'none' }, 0)
+            .to(rays, { alpha: 0, duration: 0.5, ease: 'power1.in' }, 1.6);
+
+        // shockwave
+        const ring = drawRing(40, 6);
+        ring.tint = COLOR['grass-300'].color;
+        ring.position.set(x, y);
+        this.fx.addChild(ring);
+        tl.fromTo(
+            ring.scale,
+            { x: 0.3, y: 0.3 },
+            { x: 4.5, y: 4.5, duration: 0.6, ease: 'expo.out' },
             0,
-        );
-        for (let i = 0; i < 10; i++) {
-            const coin = drawCoin();
-            coin.scale.set(0.35);
-            coin.position.set(x, y - 30);
-            this.fx.addChild(coin);
-            const angle = -Math.PI / 2 + gsap.utils.random(-1.1, 1.1);
-            const dist = gsap.utils.random(60, 120);
+        ).to(ring, { alpha: 0, duration: 0.6, ease: 'power2.in' }, 0);
+
+        // the chicken hops three times with squash and stretch
+        const feet = this.chicken.y;
+        for (let i = 0; i < 3; i++) {
+            const t = 0.05 + i * 0.36;
+            const lift = 54 - i * 10;
+            tl.to(this.chicken.scale, { x: 1.18, y: 0.8, duration: 0.06 }, t)
+                .to(this.chicken.scale, { x: 0.9, y: 1.18, duration: 0.14 }, t + 0.06)
+                .to(this.chicken, { y: feet - lift, duration: 0.15, ease: 'power2.out' }, t + 0.06)
+                .to(this.chicken, { y: feet, duration: 0.13, ease: 'power2.in' }, t + 0.21)
+                .to(
+                    this.chicken.scale,
+                    { x: 1, y: 1, duration: 0.12, ease: 'back.out(3)' },
+                    t + 0.34,
+                );
+        }
+
+        this.coinFountain(tl, x, y);
+        this.coinRain(tl);
+        this.sparkles(tl, x, y);
+
+        if (!REDUCED_MOTION) {
             tl.to(
-                coin,
-                {
-                    x: x + Math.cos(angle) * dist,
-                    y: y - 30 + Math.sin(angle) * dist,
-                    alpha: 0,
-                    duration: 0.7,
-                    ease: 'power2.out',
-                    onComplete: () => coin.destroy(),
-                },
-                0.05 + i * 0.02,
+                this.camera.scale,
+                { x: WIN.zoom, y: WIN.zoom, duration: 0.12, ease: 'power2.out' },
+                0,
+            ).to(
+                this.camera.scale,
+                { x: 1, y: 1, duration: 0.6, ease: 'elastic.out(1, 0.4)' },
+                0.12,
             );
         }
-        return play(tl);
+        tl.call(() => this.clearWin(), [], '+=0');
+        return new Promise((resolve) => tl.call(resolve, [], WIN.hold));
+    }
+
+    /** Coins burst up from the chicken, spin, and fall away under gravity. */
+    private coinFountain(tl: gsap.core.Timeline, x: number, y: number): void {
+        for (let i = 0; i < WIN.coins; i++) {
+            const coin = drawCoin();
+            const size = gsap.utils.random(0.3, 0.5);
+            coin.scale.set(size);
+            coin.position.set(x, y);
+            this.fx.addChild(coin);
+            const t = 0.03 + i * 0.018;
+            const rise = gsap.utils.random(0.32, 0.5);
+            const fall = gsap.utils.random(0.55, 0.8);
+            const peak = y - gsap.utils.random(120, 260);
+            const drift = gsap.utils.random(-220, 220);
+            tl.to(coin, { x: x + drift, duration: rise + fall, ease: 'none' }, t)
+                .to(coin, { y: peak, duration: rise, ease: 'power2.out' }, t)
+                .to(coin, { y: this.h + 60, duration: fall, ease: 'power2.in' }, t + rise)
+                .to(
+                    coin.scale,
+                    { x: -size, duration: 0.14, ease: 'sine.inOut', yoyo: true, repeat: 7 },
+                    t,
+                );
+        }
+    }
+
+    /** Coins rain across the whole screen, from above the top edge to below the bottom one. */
+    private coinRain(tl: gsap.core.Timeline): void {
+        if (REDUCED_MOTION || !this.w) return;
+        const count = Math.min(40, Math.round(this.w / 36));
+        for (let i = 0; i < count; i++) {
+            const coin = drawCoin();
+            const size = gsap.utils.random(0.25, 0.45);
+            coin.scale.set(size);
+            coin.position.set(gsap.utils.random(0, this.w), -40 - gsap.utils.random(0, 120));
+            coin.rotation = gsap.utils.random(-0.4, 0.4);
+            this.rain.addChild(coin);
+            const t = 0.15 + gsap.utils.random(0, 0.6);
+            const duration = gsap.utils.random(0.9, 1.4);
+            tl.to(coin, { y: this.h + 60, duration, ease: 'power1.in' }, t).to(
+                coin.scale,
+                { x: -size, duration: 0.16, ease: 'sine.inOut', yoyo: true, repeat: 7 },
+                t,
+            );
+        }
+    }
+
+    /** White and gold twinkles pop around the chicken. */
+    private sparkles(tl: gsap.core.Timeline, x: number, y: number): void {
+        for (let i = 0; i < WIN.sparkles; i++) {
+            const star = drawSparkle(gsap.utils.random(8, 16));
+            if (i % 2) star.tint = COLOR['sun-300'].color;
+            const a = gsap.utils.random(0, Math.PI * 2);
+            const d = gsap.utils.random(50, 150);
+            star.position.set(x + Math.cos(a) * d, y + Math.sin(a) * d * 0.8);
+            star.scale.set(0);
+            this.fx.addChild(star);
+            const t = 0.1 + gsap.utils.random(0, 0.9);
+            tl.to(star.scale, { x: 1, y: 1, duration: 0.16, ease: 'back.out(3)' }, t)
+                .to(star, { rotation: Math.PI / 2, duration: 0.4, ease: 'none' }, t)
+                .to(star.scale, { x: 0, y: 0, duration: 0.2, ease: 'power2.in' }, t + 0.22);
+        }
+    }
+
+    private clearWin(): void {
+        this.winTimeline?.kill();
+        this.winTimeline = undefined;
+        gsap.killTweensOf(this.camera.scale);
+        if (!this.shakeTween?.isActive()) this.camera.scale.set(1);
+        for (const layer of [this.halo, this.fx, this.rain]) {
+            for (const child of layer.removeChildren()) child.destroy();
+        }
+    }
+
+    private flashOnce(color: number, alpha: number, duration: number): void {
+        gsap.killTweensOf(this.flash);
+        this.flash.tint = color;
+        this.flash.alpha = alpha;
+        gsap.to(this.flash, { alpha: 0, duration });
+    }
+
+    /** The whole world jolts and rings out; scaled up just enough that no edge shows. */
+    private shake(): void {
+        if (REDUCED_MOTION || !this.w || !this.h) return;
+        const { camera, w, h } = this;
+        const cx = w / 2;
+        const cy = h / 2;
+        const reach = SHAKE.offset + SHAKE.roll * Math.hypot(w, h) * 0.5;
+        const cover = (2 * reach) / Math.min(w, h);
+        const state = { power: 1 };
+        this.shakeTween?.kill();
+        this.shakeTween = gsap.to(state, {
+            power: 0,
+            duration: SHAKE.duration,
+            ease: 'power2.out',
+            onUpdate: () => {
+                const p = state.power;
+                camera.position.set(
+                    cx + gsap.utils.random(-1, 1) * SHAKE.offset * p,
+                    cy + gsap.utils.random(-1, 1) * SHAKE.offset * p,
+                );
+                camera.rotation = gsap.utils.random(-1, 1) * SHAKE.roll * p;
+                camera.scale.set(1 + cover * p);
+            },
+            onComplete: () => this.centerCamera(),
+        });
+    }
+
+    private centerCamera(): void {
+        this.camera.pivot.set(this.w / 2, this.h / 2);
+        this.camera.position.set(this.w / 2, this.h / 2);
+        this.camera.rotation = 0;
+        this.camera.scale.set(1);
     }
 
     private impact(): void {
-        this.flash.alpha = 0.55;
-        gsap.to(this.flash, { alpha: 0, duration: 0.25 });
+        this.flashOnce(COLOR['text-title'].color, 0.55, 0.25);
+        this.shake();
+    }
+
+    /** Blood spreads under the chicken, one and a half lanes wide. */
+    private spill(lane: number): void {
+        this.clearSplat();
+        this.splatLane = lane;
+        const blood = drawBloodSplat(SIZE['lane-width'] * SPLAT_LANES);
+        this.splat.addChild(blood);
+        this.layoutSplat();
         if (REDUCED_MOTION) return;
-        gsap.fromTo(this.track, { y: 5 }, { y: 0, duration: 0.3, ease: 'elastic.out(1, 0.3)' });
+        gsap.fromTo(
+            blood.scale,
+            { x: 0.3, y: 0.3 },
+            { x: 1, y: 1, duration: 0.35, ease: 'expo.out' },
+        );
+    }
+
+    private clearSplat(): void {
+        this.splatLane = 0;
+        for (const child of this.splat.removeChildren()) {
+            gsap.killTweensOf(child.scale);
+            child.destroy();
+        }
+    }
+
+    /** The splat is drawn at the nominal lane width and scaled to the current one. */
+    private layoutSplat(): void {
+        if (!this.splatLane) return;
+        this.splat.position.set(this.laneCenterX(this.splatLane), this.chickenY());
+        this.splat.scale.set(this.laneW / SIZE['lane-width']);
     }
 
     private refreshStates(): void {
@@ -217,6 +435,8 @@ export class BoardView extends View {
         if (!this.w || !this.h) return;
         const { w, h, laneW } = this;
         this.flash.clear().rect(0, 0, w, h).fill(COLOR['text-title']);
+        this.shakeTween?.kill();
+        this.centerCamera();
 
         const end = CURB + this.lanes.length * laneW;
         const g = this.ground.clear();
@@ -236,6 +456,7 @@ export class BoardView extends View {
         });
         gsap.killTweensOf(this.chicken);
         this.placeChicken(this.step);
+        this.layoutSplat();
         this.scrollToNext(false);
     }
 

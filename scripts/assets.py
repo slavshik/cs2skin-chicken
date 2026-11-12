@@ -218,6 +218,9 @@ def trim_and_level(samples, peak_db):
 
 
 def build_sounds(cfg):
+    if not cfg["sprite"]:
+        print("sounds: none listed in assets.json")
+        return
     src, out = os.path.join(ROOT, cfg["src"]), os.path.join(ROOT, cfg["out"])
     os.makedirs(out, exist_ok=True)
     pcm, sprite = array.array("h"), {}

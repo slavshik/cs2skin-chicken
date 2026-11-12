@@ -50,14 +50,15 @@ export class ServerError extends Error {
 export class MockServer implements GameServer {
     private balance = START_BALANCE;
     private round?: Round;
+    private pending: Promise<unknown> = Promise.resolve();
 
     session(): Promise<Session> {
         return this.reply(() => ({ balance: this.balance }));
     }
 
     openRound(request: { bet: number; difficulty: Difficulty }): Promise<RoundOpened> {
+        const { bet, difficulty } = request;
         return this.reply(async () => {
-            const { bet, difficulty } = request;
             if (this.round) fail('round_open', 'Finish the current round first.');
             if (!DIFFICULTIES.includes(difficulty)) fail('bad_request', 'Unknown difficulty.');
             if (!Number.isInteger(bet) || bet < MIN_BET || bet > MAX_BET) {
@@ -139,10 +140,15 @@ export class MockServer implements GameServer {
     }
 
     /** Runs a handler after a network-like delay and returns a wire copy of its result. */
-    private async reply<T>(handler: () => T | Promise<T>): Promise<T> {
-        const [min, max] = LATENCY_MS;
-        await new Promise((resolve) => setTimeout(resolve, min + Math.random() * (max - min)));
-        return JSON.parse(JSON.stringify(await handler())) as T;
+    private reply<T>(handler: () => T | Promise<T>): Promise<T> {
+        const response = this.pending.then(async () => {
+            const [min, max] = LATENCY_MS;
+            await new Promise((resolve) => setTimeout(resolve, min + Math.random() * (max - min)));
+            return JSON.parse(JSON.stringify(await handler())) as T;
+        });
+        // A failed request must not block later requests. Serialize through async commits too.
+        this.pending = response.catch(() => undefined);
+        return response;
     }
 }
 

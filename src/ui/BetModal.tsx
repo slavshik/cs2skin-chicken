@@ -1,25 +1,24 @@
 import { type FormEvent, useEffect, useId, useRef, useState } from 'react';
+import type { BetOp, RoundResult } from '../contract/GameApi.ts';
 import { formatMoney, formatMult, formatMultShort } from '../game/format.ts';
-import { type BetOp, CARS, DIFFICULTIES, laneCount, multiplier, payout } from '../game/rules.ts';
-import type { RoundResult } from '../game/GameModel.ts';
+import { CARS, DIFFICULTIES, multiplier, payout } from '../game/rules.ts';
 import { DIFFICULTY_TITLE, fromInput, toInput } from './labels.ts';
-import { useGameApi, useGame } from './useGame.ts';
+import { useGame, useGameApi } from './useGame.ts';
 
 const CHIPS: readonly [BetOp, string][] = [
     ['half', '1/2'],
     ['double', '2x'],
-    ['min', 'Min'],
     ['max', 'Max'],
 ];
 
 /**
- * The pre-round popup (design/components/BetPanel.md): stake, difficulty, what's at stake,
- * and Go. Open while betting; after a round it leads with that round's result.
+ * The pre-round popup (design/components/BetPanel.md): stake, difficulty, Go. After a round
+ * it leads with that round's result. Kept to what the decision needs.
  */
 export function BetModal({ open }: { open: boolean }) {
-    const ui = useGameApi();
+    const api = useGameApi();
     const g = useGame();
-    const titleId = useId();
+    const id = useId();
     const goRef = useRef<HTMLButtonElement>(null);
     const [text, setText] = useState(toInput(g.bet));
     const [editing, setEditing] = useState(false);
@@ -36,19 +35,18 @@ export function BetModal({ open }: { open: boolean }) {
 
     const commit = () => {
         const cents = fromInput(text);
-        if (Number.isFinite(cents)) ui.setBet(cents);
+        if (Number.isFinite(cents)) api.setBet(cents);
         setEditing(false);
-        setText(toInput(g.bet));
     };
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
         commit();
-        ui.placeBet();
+        api.placeBet();
     };
 
-    const firstLane = multiplier(g.difficulty, 1);
-    const maxMult = multiplier(g.difficulty, g.lanes);
+    const cars = CARS[g.difficulty];
+    const maxWin = payout(g.bet, multiplier(g.difficulty, g.lanes));
 
     return (
         <div className="ui-modal" data-open={open} aria-hidden={!open}>
@@ -56,27 +54,22 @@ export function BetModal({ open }: { open: boolean }) {
                 className="ui-card"
                 role="dialog"
                 aria-modal="true"
-                aria-labelledby={titleId}
+                aria-label="Place a bet"
                 onSubmit={submit}
             >
-                <header className="ui-card__head">
-                    <h2 id={titleId}>Chicken Cross Road</h2>
-                    <span className="ui-balance">
-                        <span className="ccr-coin" /> {formatMoney(g.balance)}
-                    </span>
-                </header>
-
                 {g.lastResult && <LastResult result={g.lastResult} />}
 
                 <div className="ui-field">
-                    <label className="ccr-label" htmlFor={`${titleId}-bet`}>
-                        Bet Amount
-                        {g.bet > g.balance && <b className="ui-error">Over balance</b>}
+                    <label className="ui-label" htmlFor={`${id}-bet`}>
+                        <span>Bet</span>
+                        <span className="ui-balance">
+                            Balance <b>{formatMoney(g.balance)}</b>
+                        </span>
                     </label>
-                    <div className="ccr-input">
+                    <div className="ccr-input" data-error={g.bet > g.balance || undefined}>
                         <span className="ccr-coin" />
                         <input
-                            id={`${titleId}-bet`}
+                            id={`${id}-bet`}
                             inputMode="decimal"
                             autoComplete="off"
                             value={text}
@@ -89,7 +82,7 @@ export function BetModal({ open }: { open: boolean }) {
                                 key={op}
                                 type="button"
                                 className="ccr-chip"
-                                onClick={() => ui.betOp(op)}
+                                onClick={() => api.betOp(op)}
                             >
                                 {label}
                             </button>
@@ -97,45 +90,32 @@ export function BetModal({ open }: { open: boolean }) {
                     </div>
                 </div>
 
-                <fieldset className="ui-field ui-diffs">
-                    <legend className="ccr-label">Difficulty</legend>
-                    {DIFFICULTIES.map((d, i) => (
-                        <button
-                            key={d}
-                            type="button"
-                            className="ui-diff"
-                            aria-pressed={d === g.difficulty}
-                            onClick={() => ui.setDifficulty(d)}
-                        >
-                            <span className="ui-diff__name">
-                                {DIFFICULTY_TITLE[d]} <kbd>{i + 1}</kbd>
-                            </span>
-                            <span className="ui-diff__meta">
-                                {laneCount(d)} lanes · {CARS[d]} car{CARS[d] > 1 ? 's' : ''}
-                            </span>
-                            <span className="ui-diff__max">
-                                up to {formatMultShort(multiplier(d, laneCount(d)))}
-                            </span>
-                        </button>
-                    ))}
-                </fieldset>
-
-                <dl className="ui-summary">
-                    <div>
-                        <dt>First lane</dt>
-                        <dd>{formatMult(firstLane)}</dd>
+                <div className="ui-field" role="radiogroup" aria-label="Difficulty">
+                    <div className="ui-seg">
+                        {DIFFICULTIES.map((d) => (
+                            <button
+                                key={d}
+                                type="button"
+                                role="radio"
+                                aria-checked={d === g.difficulty}
+                                className="ui-seg__opt"
+                                onClick={() => api.setDifficulty(d)}
+                            >
+                                {DIFFICULTY_TITLE[d]}
+                            </button>
+                        ))}
                     </div>
-                    <div>
-                        <dt>Max win</dt>
-                        <dd>{formatMoney(payout(g.bet, maxMult))}</dd>
-                    </div>
-                </dl>
+                    <p className="ui-caption">
+                        {g.lanes} lanes · {cars} car{cars > 1 ? 's' : ''} · win up to{' '}
+                        <b>{formatMultShort(multiplier(g.difficulty, g.lanes))}</b>
+                    </p>
+                </div>
 
                 {g.isBroke ? (
                     <button
                         type="button"
                         className="ccr-btn ccr-btn--cashout ccr-btn--block"
-                        onClick={() => ui.resetBalance()}
+                        onClick={() => api.resetBalance()}
                     >
                         Refill demo balance
                     </button>
@@ -145,30 +125,27 @@ export function BetModal({ open }: { open: boolean }) {
                         type="submit"
                         className="ccr-btn ccr-btn--primary ccr-btn--block ui-go"
                         disabled={!g.canBet && !editing}
+                        title={`Max win ${formatMoney(maxWin)} · Space`}
                     >
-                        Go <span className="ccr-btn__sub">{formatMoney(g.bet)}</span>
+                        Go
                     </button>
                 )}
-                <p className="ui-hint">
-                    <kbd>Space</kbd> start / next lane · <kbd>Enter</kbd> cash out
-                </p>
             </form>
         </div>
     );
 }
 
-function LastResult({ result }: { result: RoundResult }) {
-    return result.won ? (
-        <div className="ui-result ui-result--win" role="status">
-            <span>Cashed out on lane {result.lane}</span>
+function LastResult({ result }: { result: Readonly<RoundResult> }) {
+    return (
+        <div className={`ui-result ui-result--${result.won ? 'win' : 'lose'}`} role="status">
+            <span>
+                {result.won ? `Cashed out · lane ${result.lane}` : `Splat · lane ${result.lane}`}
+            </span>
             <b>
-                {formatMult(result.mult)} · +{formatMoney(result.paid)}
+                {result.won
+                    ? `${formatMult(result.mult)}  +${formatMoney(result.paid)}`
+                    : `−${formatMoney(result.bet)}`}
             </b>
-        </div>
-    ) : (
-        <div className="ui-result ui-result--lose" role="status">
-            <span>Splat on lane {result.lane}</span>
-            <b>−{formatMoney(result.bet)}</b>
         </div>
     );
 }

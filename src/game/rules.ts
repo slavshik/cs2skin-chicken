@@ -58,9 +58,16 @@ export function planRound(d: Difficulty, random: () => number): number {
 
 export type BetOp = 'half' | 'double' | 'min' | 'max';
 
+/** Largest stake allowed right now. */
+export const maxBet = (balance: number): number => Math.max(MIN_BET, Math.min(MAX_BET, balance));
+
+/** A typed stake (cents) clamped to the limits and the balance. */
+export const clampBet = (cents: number, balance: number): number =>
+    Math.min(maxBet(balance), Math.max(MIN_BET, Math.round(cents)));
+
 /** The bet after a quick-change chip, clamped to the limits and the balance. */
 export function adjustBet(bet: number, op: BetOp, balance: number): number {
-    const max = Math.max(MIN_BET, Math.min(MAX_BET, balance));
+    const max = maxBet(balance);
     const next =
         op === 'half' ? Math.floor(bet / 2) : op === 'double' ? bet * 2 : op === 'min' ? 0 : max;
     return Math.min(max, Math.max(MIN_BET, next));

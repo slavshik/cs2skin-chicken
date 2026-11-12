@@ -10,7 +10,10 @@ import { AppRootView } from './app/root/AppRootView.ts';
 import { bindGsapToTicker } from './app/ticker.ts';
 import { TypesApp } from './app/types.ts';
 import { Sound } from './audio/Sound.ts';
+import type { GameModel } from './game/GameModel.ts';
 import { type SoundName, soundSprite } from './audio/sounds.ts';
+import { UiBridge } from './ui/bridge.ts';
+import { mountUi } from './ui/mount.tsx';
 
 async function boot(): Promise<void> {
     const app = new Application();
@@ -39,6 +42,9 @@ async function boot(): Promise<void> {
     di.bind(TypesApp.sound).toConstantValue(sound);
 
     await new BootAction().run();
+    // The React layer (bet popup, round HUD) sits over the canvas and talks to it via UiBridge.
+    const ui = document.getElementById('ui');
+    if (ui) mountUi(ui, new UiBridge(di.get<GameModel>(TypesApp.model)));
     // Starts the view tree: the root mediator puts the root on the stage.
     di.get<RootView>(Types2D.rootView).emit(View.ADDED_TO_SCENE);
 

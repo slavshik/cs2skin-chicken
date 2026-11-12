@@ -1,5 +1,6 @@
 import {
     DEFAULT_BET,
+    MIN_BET,
     type Difficulty,
     laneCount,
     multiplier,
@@ -17,6 +18,10 @@ export interface RoundResult {
     mult: number;
     /** Cents paid out (0 on a loss). */
     paid: number;
+    /** Cents staked. */
+    bet: number;
+    /** The lane the round ended on: the last cleared one, or the one with the car. */
+    lane: number;
 }
 
 /** Wallet and round state. Plain data plus transitions; the rules live in `rules.ts`. */
@@ -28,6 +33,8 @@ export class GameModel {
     /** Lanes cleared this round. */
     step = 0;
     readonly history: RoundResult[] = [];
+    /** The round that just ended, shown when the bet popup reopens. */
+    lastResult?: RoundResult;
     /** Lane of the round's first car. Only `isHit` reads it. */
     private hitLane = 0;
 
@@ -49,6 +56,17 @@ export class GameModel {
 
     get canBet(): boolean {
         return this.phase === 'idle' && this.bet <= this.balance;
+    }
+
+    /** The demo wallet cannot cover the minimum stake. */
+    get isBroke(): boolean {
+        return this.balance < MIN_BET;
+    }
+
+    /** Demo only: refills the wallet. */
+    resetBalance(): void {
+        this.balance = START_BALANCE;
+        this.bet = Math.min(this.bet, this.balance);
     }
 
     /** Takes the stake and draws the round's outcome. */
@@ -74,7 +92,14 @@ export class GameModel {
         const mult = won ? this.currentMult : this.nextMult;
         const paid = won ? payout(this.bet, mult) : 0;
         this.balance += paid;
-        const result = { won, mult, paid };
+        const result: RoundResult = {
+            won,
+            mult,
+            paid,
+            bet: this.bet,
+            lane: won ? this.step : this.step + 1,
+        };
+        this.lastResult = result;
         this.history.unshift(result);
         this.history.length = Math.min(this.history.length, 12);
         return result;

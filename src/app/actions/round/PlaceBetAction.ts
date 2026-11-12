@@ -4,7 +4,7 @@ import { secureRandom } from '../../../game/rules.ts';
 import { AppEvents } from '../../events.ts';
 import type { RoundContext } from './RoundContext.ts';
 
-/** Takes the stake, draws the outcome, arms the first lane. */
+/** Takes the stake, draws the outcome, and arms the first lane on a clean board. */
 @injectable()
 export class PlaceBetAction extends Action<RoundContext, void> {
     async execute({ model, board }: RoundContext): Promise<void> {

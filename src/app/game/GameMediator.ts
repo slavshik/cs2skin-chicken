@@ -2,20 +2,25 @@ import { inject } from 'inversify';
 import { injectable } from '@dp-instant/core/injectable.ts';
 import { Mediator } from '@dp-instant/2d/Mediator.ts';
 import type { GameModel } from '../../game/GameModel.ts';
-import { adjustBet, type BetOp, DIFFICULTIES, type Difficulty } from '../../game/rules.ts';
+import {
+    adjustBet,
+    type BetOp,
+    clampBet,
+    DIFFICULTIES,
+    type Difficulty,
+} from '../../game/rules.ts';
 import { CashOutAction } from '../actions/round/CashOutAction.ts';
 import { PlaceBetAction } from '../actions/round/PlaceBetAction.ts';
 import type { RoundContext } from '../actions/round/RoundContext.ts';
 import { StepAction } from '../actions/round/StepAction.ts';
-import { AppEvents } from '../events.ts';
+import { AppEvents, UiEvents } from '../events.ts';
 import { TypesApp } from '../types.ts';
 import { BoardView } from './BoardView.ts';
-import { GameScreen } from './GameScreen.ts';
-import { PanelView } from './PanelView.ts';
+import type { GameScreen } from './GameScreen.ts';
 
 /**
- * Turns input (panel, manhole taps, keyboard) into round actions and keeps the panel and HUD
- * in step with the model. Keys: Space = Place Bet / Go, Enter = Cash Out, 1–4 = difficulty.
+ * Turns input into round actions: `UiEvents` from the React layer, taps on the next manhole,
+ * and keys (Space = Go / next lane, Enter = Cash Out, 1–4 = difficulty while betting).
  */
 @injectable()
 export class GameMediator extends Mediator<GameScreen> {
@@ -25,25 +30,23 @@ export class GameMediator extends Mediator<GameScreen> {
     private readonly onKey = (e: KeyboardEvent): void => this.handleKey(e);
 
     protected initialize(): void {
-        const { panel, board } = this.view!;
-        panel.on(PanelView.PRIMARY, this.onPrimary, this);
-        panel.on(PanelView.CASH_OUT, this.onCashOut, this);
-        panel.on(PanelView.BET, this.onBet, this);
-        panel.on(PanelView.DIFFICULTY, this.onDifficulty, this);
-        board.on(BoardView.LANE_TAP, this.onPrimary, this);
-        this.addViewListener(GameScreen.RESIZED, this.render);
-        this.addListener(AppEvents.MODEL_CHANGED, this.render);
+        this.view!.board.on(BoardView.LANE_TAP, this.onStep, this);
+        this.addListener(UiEvents.PLACE_BET, this.onPlaceBet);
+        this.addListener(UiEvents.STEP, this.onStep);
+        this.addListener(UiEvents.CASH_OUT, this.onCashOut);
+        this.addListener(UiEvents.SET_BET, this.onSetBet);
+        this.addListener(UiEvents.BET_OP, this.onBetOp);
+        this.addListener(UiEvents.SET_DIFFICULTY, this.onDifficulty);
+        this.addListener(UiEvents.RESET_BALANCE, this.onResetBalance);
         window.addEventListener('keydown', this.onKey);
 
-        board.setup(this.model.difficulty, this.model.lanes);
-        this.render();
+        this.view!.board.setup(this.model.difficulty, this.model.lanes);
+        this.changed();
     }
 
     override destroy(): void {
         window.removeEventListener('keydown', this.onKey);
-        const view = this.view;
-        view?.panel.removeAllListeners();
-        view?.board.off(BoardView.LANE_TAP, this.onPrimary, this);
+        this.view?.board.off(BoardView.LANE_TAP, this.onStep, this);
         super.destroy();
     }
 
@@ -51,26 +54,41 @@ export class GameMediator extends Mediator<GameScreen> {
         return { model: this.model, board: this.view!.board };
     }
 
-    private onPrimary(): void {
+    private onPlaceBet(): void {
         if (this.model.phase === 'idle') void this.run(new PlaceBetAction());
-        else if (this.model.phase === 'live') void this.run(new StepAction());
+    }
+
+    private onStep(): void {
+        if (this.model.phase === 'live') void this.run(new StepAction());
     }
 
     private onCashOut(): void {
         if (this.model.canCashOut) void this.run(new CashOutAction());
     }
 
-    private onBet(op: BetOp): void {
+    private onSetBet(cents: number): void {
+        if (this.model.phase !== 'idle' || !Number.isFinite(cents)) return;
+        this.model.bet = clampBet(cents, this.model.balance);
+        this.changed();
+    }
+
+    private onBetOp(op: BetOp): void {
         if (this.model.phase !== 'idle') return;
         this.model.bet = adjustBet(this.model.bet, op, this.model.balance);
-        this.render();
+        this.changed();
     }
 
     private onDifficulty(difficulty: Difficulty): void {
         if (this.model.phase !== 'idle' || difficulty === this.model.difficulty) return;
         this.model.difficulty = difficulty;
         this.view!.board.setup(difficulty, this.model.lanes);
-        this.render();
+        this.changed();
+    }
+
+    private onResetBalance(): void {
+        if (this.model.phase !== 'idle' || !this.model.isBroke) return;
+        this.model.resetBalance();
+        this.changed();
     }
 
     /** One round action at a time; input during an animation is dropped. */
@@ -82,24 +100,23 @@ export class GameMediator extends Mediator<GameScreen> {
         } finally {
             this.running = false;
             action.destroy();
-            this.render();
         }
     }
 
-    private render(): void {
-        if (!this.view) return;
-        this.view.panel.render(this.model);
-        this.view.hud.render(this.model);
+    private changed(): void {
+        this.dispatch(AppEvents.MODEL_CHANGED);
     }
 
     private handleKey(e: KeyboardEvent): void {
-        if (e.repeat || e.target instanceof HTMLInputElement) return;
+        const target = e.target as HTMLElement | null;
+        if (e.repeat || target?.closest('input, textarea, button, select')) return;
         if (e.code === 'Space') {
             e.preventDefault();
-            this.onPrimary();
+            if (this.model.phase === 'idle') this.onPlaceBet();
+            else this.onStep();
         } else if (e.code === 'Enter') {
             this.onCashOut();
-        } else if (/^Digit[1-4]$/.test(e.code)) {
+        } else if (this.model.phase === 'idle' && /^Digit[1-4]$/.test(e.code)) {
             const d = DIFFICULTIES[Number(e.code.slice(5)) - 1];
             if (d) this.onDifficulty(d);
         }

@@ -4,7 +4,7 @@ import { AppEvents } from '../../events.ts';
 import { EndRoundAction } from './EndRoundAction.ts';
 import type { RoundContext } from './RoundContext.ts';
 
-/** Pays out the current multiplier and shows the win card. */
+/** Pays out the current multiplier; the chicken celebrates. */
 @injectable()
 export class CashOutAction extends Action<RoundContext, void> {
     async execute(context: RoundContext): Promise<void> {
@@ -12,9 +12,9 @@ export class CashOutAction extends Action<RoundContext, void> {
         if (model.phase === 'idle' || model.step === 0) return;
 
         model.phase = 'busy';
-        const result = model.settle(true);
+        model.settle(true);
         this.dispatch(AppEvents.MODEL_CHANGED);
-        await board.showResult(true, result.mult, result.paid);
+        await board.celebrate();
         await new EndRoundAction().run(context);
     }
 }

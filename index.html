@@ -46,6 +46,7 @@
             #game canvas {
                 position: absolute;
                 inset: 0;
+                z-index: 0;
                 display: block;
             }
             @media (max-width: 1023px) {
@@ -146,8 +147,8 @@
                 </div>
             </aside>
 
-            <!-- THE GAME: Pixi mounts its canvas here and sizes itself to this element -->
-            <main id="game"></main>
+            <!-- THE GAME: Pixi canvas (the world) sized to this element, React UI layered over it -->
+            <main id="game"><div id="ui" class="ui-root"></div></main>
         </div>
         <div class="ccr-support"></div>
         <script type="module" src="/src/main.ts"></script>

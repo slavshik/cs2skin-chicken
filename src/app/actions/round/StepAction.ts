@@ -22,17 +22,16 @@ export class StepAction extends Action<RoundContext, void> {
         await board.hopTo(lane);
 
         if (hit) {
-            const result = model.settle(false);
+            model.settle(false);
             this.dispatch(AppEvents.MODEL_CHANGED);
             await board.crash(lane);
-            await board.showResult(false, result.mult, model.bet);
             await new EndRoundAction().run(context);
             return;
         }
 
         model.clearLane();
         this.dispatch(AppEvents.MODEL_CHANGED);
-        await board.clearLane(lane, model.currentMult);
+        await board.clearLane(lane);
         if (model.step >= model.lanes) {
             await new CashOutAction().run(context);
             return;

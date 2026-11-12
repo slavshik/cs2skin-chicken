@@ -12,6 +12,7 @@ A change is done when `make build` exits 0 with no new warnings. That target run
 - **dp-instant port (`src/dp/`), kept minimal.** A trimmed port of dp-instant's `core` and `2d` on Pixi 8 and inversify 8: `Action`, `EventDispatcher`, `GlobalEventProvider`, `di`, `View`/`Mediator`, `RootView`/`RootMediator`, `layout`. Import by file (`@dp-instant/core/Action.ts`); there are no barrel `index.ts` files. Add to it only what the game uses.
 - **View / Mediator.** Views only render, animate and emit view events. Their `Mediator` holds the logic: it listens to its view and to global events (`dispatch`/`addListener`), and runs actions. Register each view in `src/app/AppModule.ts` with `.onActivation(bindMediator(SomeMediator))` and resolve it with `di.get`. Decorate DI classes with `injectable()` from `@dp-instant/core/injectable.ts`, not inversify's, so subclasses inherit `@inject` properties.
 - **Flow is actions.** Game flow (rounds, steps, results) is built from `Action` subclasses. Game rules live in pure functions, separate from views, so they can be tested without rendering.
+- **Pixi draws the world, React draws the UI.** The canvas (`src/app/`) renders only the game world: road, lanes, manholes, chicken, cars. Every control is React (`src/ui/`), layered over the canvas inside `#game`: the bet popup before a round, the round HUD during it. React talks to the game only through `UiBridge` (`src/ui/bridge.ts`): commands go out as `UiEvents`, model snapshots come back via `useSyncExternalStore`. React never imports Pixi views or mutates the model; Pixi views never render UI.
 - **One ticker.** `Ticker.shared` drives rendering and GSAP (`bindGsapToTicker`, `src/app/ticker.ts`). Animate and delay with GSAP (`gsap.to`, `gsap.delayedCall`), never `setTimeout` or `requestAnimationFrame`, so pausing the game (e.g. a hidden tab) freezes everything.
 
 ## Design system
@@ -25,10 +26,11 @@ A change is done when `make build` exits 0 with no new warnings. That target run
 
 ## Game map
 
-- `src/game/`: pure, no Pixi. `rules.ts` (difficulties, `multiplier`, `planRound`, bet limits; money in cents, multipliers in hundredths), `GameModel.ts` (wallet and round state), `format.ts`.
-- `src/app/actions/round/`: the round flow. `PlaceBetAction` → `StepAction` (hop, then clear or crash) → `CashOutAction` → `EndRoundAction`. Each dispatches `AppEvents.MODEL_CHANGED`.
-- `src/app/game/`: `GameScreen` (+ `GameMediator`: input, keys, render) holds `HudView`, `PanelView` and `BoardView` (`LaneView`, `ResultCard`). Placeholder art is drawn in `src/app/ui/art.ts` until sprites ship.
-- `index.html` is the host site's placeholder shell (header and chat). The canvas lives in `#game` and is sized to it; `MIN_SIZE` in `src/app/layout.ts` is the size below which the stage scales down.
+- `src/game/`: pure, no Pixi or React. `rules.ts` (difficulties, `multiplier`, `planRound`, bet limits; money in cents, multipliers in hundredths), `GameModel.ts` (wallet, round state, last result), `format.ts`.
+- `src/app/actions/round/`: the round flow. `PlaceBetAction` → `StepAction` (hop, then clear or crash) → `CashOutAction` → `EndRoundAction` (freezes the scene, then reopens betting). Each dispatches `AppEvents.MODEL_CHANGED`.
+- `src/app/game/`: `GameScreen` holds `BoardView` (`LaneView`); `GameMediator` turns `UiEvents`, manhole taps and keys into actions. Placeholder art is drawn in `src/app/ui/art.ts` until sprites ship.
+- `src/ui/`: React. `BetModal` (popup: stake, difficulty, last result, Go), `RoundHud` (bet at stake, live multiplier, lane, Cash Out), `bridge.ts`, `useGame.ts`, `ui.css` (design tokens only; layout by container queries on the stage).
+- `index.html` is the host site's placeholder shell (header and chat). `#game` holds the canvas and the React root; `MIN_SIZE` in `src/app/layout.ts` is the size below which the canvas scales down.
 
 ## Gotchas
 

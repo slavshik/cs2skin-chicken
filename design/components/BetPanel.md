@@ -1,13 +1,12 @@
 # BetPanel
 
-The left-hand control column. It holds the Manual/Auto tabs, the stake, the difficulty and the round CTA, in that order.
+The bet popup shown before every round: stake, difficulty, what's at stake, and Go. In code it's `BetModal` (React, `src/ui/BetModal.tsx`).
 
-Layout follows the site's Mines page: `bet-panel-width` (335px), a `bg-900` body, `radius-lg`, `space-400` padding and `space-400` between rows. Tabs sit on `bg-930`; the active tab gets a 2px `primary-500` underline.
+- **Open while betting.** It covers the game stage only (host header and chat stay usable) on an `overlay` scrim, with the board visible behind it. Card: `bg-900`, `radius-xl`, `shadow-float`, max 420px wide.
+- **Order:** title + balance → last round's result (win `grass-*` / loss `blood-*`, only after a round) → Bet Amount (editable, chips 1/2 · 2x · Min · Max) → Difficulty (2×2 cards: name, lanes and cars, max multiplier) → summary (first lane, max win) → **Go** (primary, shows the stake).
+- **Go** starts the round and the popup fades out (180ms). Focus returns to the page so Space keeps stepping.
+- **During the round** the RoundHud shows what's at stake: the bet and difficulty pill, the live multiplier with `Lane n/N`, and Cash Out with the amount it pays. On a narrow stage, the stake and Cash Out move to the bottom.
+- **After the round** the scene freezes for 0.5s, then the popup returns, leading with the result.
+- When the demo balance can't cover the minimum bet, Go becomes _Refill demo balance_.
 
-The panel has three states:
-
-1. **Idle**: inputs enabled, one Primary _Place Bet_.
-2. **Live**: inputs locked. _Cash Out_ (with the live multiplier) above Primary _Go_, which hops one lane. The profit line shows in `grass-300`.
-3. **Settled**: the ResultBanner shows on the board, and the panel returns to Idle after about 1.2s.
-
-On mobile (<768px) the panel sits below the board at full width. The CTA becomes sticky above `bottom-nav-height`.
+Keys: Space = Go / next lane, Enter = Cash Out, 1–4 = difficulty (while betting).

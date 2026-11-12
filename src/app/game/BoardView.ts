@@ -1,13 +1,10 @@
 import { gsap } from 'gsap';
 import { Container, Graphics } from 'pixi.js';
 import { View } from '@dp-instant/2d/View.ts';
-import { formatMult } from '../../game/format.ts';
 import { type Difficulty, multiplier } from '../../game/rules.ts';
-import { CAR_COLORS, drawCar, drawChicken } from '../ui/art.ts';
-import { label } from '../ui/text.ts';
-import { COLOR, RADIUS, SIZE } from '../ui/tokens.ts';
+import { CAR_COLORS, drawCar, drawChicken, drawCoin } from '../ui/art.ts';
+import { COLOR, SIZE } from '../ui/tokens.ts';
 import { laneCenterY, LaneView } from './LaneView.ts';
-import { ResultCard } from './ResultCard.ts';
 
 /** Grass verge widths before the first lane and after the last. */
 const CURB = 96;
@@ -28,26 +25,20 @@ const play = (timeline: gsap.core.Timeline): Promise<void> =>
     new Promise((resolve) => timeline.eventCallback('onComplete', () => resolve()));
 
 /**
- * The road (design/components/Lane.md): a grass curb, one lane per step, a finish verge.
- * Renders and animates only; `BoardView.LANE_TAP` reports a tap on the next manhole.
+ * The game world (design/components/Lane.md): a grass curb, one lane per step, a finish verge,
+ * the chicken and the traffic. No UI: bet, multiplier and cash-out live in the React layer.
+ * `BoardView.LANE_TAP` reports a tap on the next manhole.
  */
 export class BoardView extends View {
     static readonly LANE_TAP = 'laneTap';
 
-    private readonly frame = new Graphics();
     private readonly track = new Container();
     private readonly ground = new Graphics();
     private readonly lanesLayer = new Container();
     private readonly traffic = new Container();
+    private readonly fx = new Container();
     private readonly chicken = drawChicken();
     private readonly flash = new Graphics();
-    private readonly liveChip = new Container();
-    private readonly liveBg = new Graphics();
-    private readonly liveText = label('x1.00', 26, 'text-title', true);
-    private readonly badge = new Container();
-    private readonly badgeBg = new Graphics();
-    private readonly badgeText = label('', 12, 'text-on-bright', true);
-    private readonly result = new ResultCard();
 
     private lanes: LaneView[] = [];
     private cars: Car[] = [];
@@ -61,16 +52,9 @@ export class BoardView extends View {
 
     constructor() {
         super();
-        this.liveText.anchor.set(0.5);
-        this.liveChip.addChild(this.liveBg, this.liveText);
-        this.badgeText.anchor.set(0.5);
-        this.badge.addChild(this.badgeBg, this.badgeText);
-        this.track.addChild(this.ground, this.lanesLayer, this.chicken, this.traffic);
-        this.addChild(this.track, this.flash, this.liveChip, this.badge, this.result, this.frame);
-        this.mask = this.frame;
+        this.track.addChild(this.ground, this.lanesLayer, this.chicken, this.traffic, this.fx);
+        this.addChild(this.track, this.flash);
         this.flash.alpha = 0;
-        this.liveChip.visible = false;
-        this.badge.visible = false;
     }
 
     override onAdded(): void {
@@ -104,31 +88,31 @@ export class BoardView extends View {
         this.layout();
     }
 
-    /** A new round: the first lane is armed. */
+    /** A new round from a clean board: the first lane is armed. */
     startRound(): void {
+        this.resetRound();
         this.live = true;
-        this.step = 0;
         this.refreshStates();
-        this.setLive(100);
-        this.liveChip.visible = true;
-        this.badge.visible = true;
         this.scrollToNext();
     }
 
-    /** Back to betting: chicken on the curb, every lane locked. */
+    /** Back to the start: chicken on the curb, every lane locked. */
     resetRound(): void {
         this.live = false;
         this.step = 0;
         this.clearTraffic();
-        gsap.killTweensOf([this.chicken, this.chicken.scale, this.chicken.position]);
+        gsap.killTweensOf([this.chicken, this.chicken.scale]);
         this.chicken.scale.set(1);
-        this.chicken.rotation = 0;
         this.chicken.alpha = 1;
         this.placeChicken(0);
         this.refreshStates();
-        this.liveChip.visible = false;
-        this.badge.visible = false;
         this.scrollToNext(false);
+    }
+
+    /** The round is over but the scene stays as it ended, behind the bet popup. */
+    freeze(): void {
+        this.live = false;
+        this.refreshStates();
     }
 
     /** The chicken hops onto a lane's manhole. */
@@ -149,54 +133,67 @@ export class BoardView extends View {
         return play(tl);
     }
 
-    /** The lane closes: barrier, coin, multiplier up, next lane armed. */
-    clearLane(lane: number, mult: number): Promise<void> {
+    /** The lane closes: barrier drops in, the manhole turns into a coin, the next lane is armed. */
+    clearLane(lane: number): Promise<void> {
         this.step = lane;
         this.retireCarsIn(lane);
+        // The newly armed lane must stay readable: its manhole is the tap target.
+        this.retireCarsIn(lane + 1, true);
         const tl = gsap.timeline();
         this.lanes[lane - 1]?.animateClear(tl, 0);
-        tl.call(
-            () => {
-                this.refreshStates();
-                this.setLive(mult);
-            },
-            [],
-            0.2,
-        );
-        tl.fromTo(
-            this.liveChip.scale,
-            { x: 1.15, y: 1.15 },
-            { x: 1, y: 1, duration: 0.25, ease: 'back.out(3)' },
-            0.2,
-        );
+        tl.call(() => this.refreshStates(), [], 0.2).to({}, { duration: 0.1 });
         return play(tl);
     }
 
     /** A car drives through the lane and over the chicken. */
     crash(lane: number): Promise<void> {
-        const view = this.lanes[lane - 1];
-        view?.setState('crashed');
-        const impactY = this.chickenY() - 30;
+        this.lanes[lane - 1]?.setState('crashed');
         const car = drawCar(CAR_COLORS[lane % CAR_COLORS.length]!);
         car.position.set(this.laneCenterX(lane), -60);
         this.traffic.addChild(car);
 
         const tl = gsap.timeline();
-        tl.to(car, { y: impactY, duration: 0.32, ease: 'power2.in' })
+        tl.to(car, { y: this.chickenY() - 30, duration: 0.32, ease: 'power2.in' })
             .addLabel('hit')
             .call(() => this.impact(), [], 'hit')
             .to(this.chicken.scale, { x: 1.35, y: 0.22, duration: 0.08 }, 'hit')
             .to(this.chicken, { alpha: 0.6, duration: 0.2 }, 'hit')
             .to(car, { y: this.h + 80, duration: 0.4, ease: 'power1.out' }, 'hit')
             .call(() => car.destroy())
-            .to({}, { duration: 0.15 });
+            .to({}, { duration: 0.2 });
         return play(tl);
     }
 
-    showResult(won: boolean, mult: number, amount: number): Promise<void> {
-        this.liveChip.visible = false;
-        this.badge.visible = false;
-        return this.result.show(won, mult, amount);
+    /** Cash-out: the chicken jumps for joy under a burst of coins. */
+    celebrate(): Promise<void> {
+        const { x, y } = this.chicken.position;
+        const tl = gsap.timeline();
+        tl.to(
+            this.chicken,
+            { y: y - 30, duration: 0.18, ease: 'power2.out', yoyo: true, repeat: 3 },
+            0,
+        );
+        for (let i = 0; i < 10; i++) {
+            const coin = drawCoin();
+            coin.scale.set(0.35);
+            coin.position.set(x, y - 30);
+            this.fx.addChild(coin);
+            const angle = -Math.PI / 2 + gsap.utils.random(-1.1, 1.1);
+            const dist = gsap.utils.random(60, 120);
+            tl.to(
+                coin,
+                {
+                    x: x + Math.cos(angle) * dist,
+                    y: y - 30 + Math.sin(angle) * dist,
+                    alpha: 0,
+                    duration: 0.7,
+                    ease: 'power2.out',
+                    onComplete: () => coin.destroy(),
+                },
+                0.05 + i * 0.02,
+            );
+        }
+        return play(tl);
     }
 
     private impact(): void {
@@ -206,25 +203,10 @@ export class BoardView extends View {
         gsap.fromTo(this.track, { y: 5 }, { y: 0, duration: 0.3, ease: 'elastic.out(1, 0.3)' });
     }
 
-    private setLive(mult: number): void {
-        this.liveText.text = formatMult(mult);
-        const w = this.liveText.width + 32;
-        this.liveBg
-            .clear()
-            .roundRect(-w / 2, -22, w, 44, 22)
-            .fill(COLOR['primary-500']);
-        this.badgeText.text = `Lane ${this.step}/${this.lanes.length}`;
-        const bw = this.badgeText.width + 24;
-        this.badgeBg
-            .clear()
-            .roundRect(-bw / 2, -14, bw, 28, 14)
-            .fill(COLOR['grass-400']);
-        this.layoutHud();
-    }
-
     private refreshStates(): void {
         this.lanes.forEach((lane, i) => {
             const n = i + 1;
+            if (lane.state === 'crashed' && !this.live && n === this.step + 1) return;
             lane.setState(
                 n <= this.step ? 'cleared' : this.live && n === this.step + 1 ? 'next' : 'locked',
             );
@@ -234,17 +216,16 @@ export class BoardView extends View {
     private layout(): void {
         if (!this.w || !this.h) return;
         const { w, h, laneW } = this;
-        this.frame.clear().roundRect(0, 0, w, h, RADIUS['radius-lg']).fill(COLOR['bg-900']);
         this.flash.clear().rect(0, 0, w, h).fill(COLOR['text-title']);
 
         const end = CURB + this.lanes.length * laneW;
         const g = this.ground.clear();
-        g.rect(0, 0, CURB, h).fill(COLOR['grass-800']);
-        g.rect(end, 0, FINISH, h).fill(COLOR['grass-800']);
+        g.rect(-w, 0, w + CURB, h).fill(COLOR['grass-800']);
+        g.rect(end, 0, FINISH + w, h).fill(COLOR['grass-800']);
         g.rect(CURB - 10, 0, 10, h).fill(COLOR['road-curb']);
         g.rect(end, 0, 10, h).fill(COLOR['road-curb']);
+        const tuft = { color: COLOR['grass-600'].color, alpha: 0.45 };
         for (let y = 24; y < h; y += 72) {
-            const tuft = { color: COLOR['grass-600'].color, alpha: 0.45 };
             g.circle(22 + ((y * 7) % 40), y, 7).fill(tuft);
             g.circle(end + 40 + ((y * 5) % 50), y + 30, 8).fill(tuft);
         }
@@ -255,14 +236,7 @@ export class BoardView extends View {
         });
         gsap.killTweensOf(this.chicken);
         this.placeChicken(this.step);
-        this.result.layout(w, h);
-        this.layoutHud();
         this.scrollToNext(false);
-    }
-
-    private layoutHud(): void {
-        this.liveChip.position.set(this.w / 2, 34);
-        this.badge.position.set(this.w - this.badgeBg.width / 2 - 12, 26);
     }
 
     private laneCenterX(lane: number): number {
@@ -325,9 +299,9 @@ export class BoardView extends View {
     }
 
     /** Cars still above the chicken in a lane that just closed fade out at the barrier. */
-    private retireCarsIn(lane: number): void {
+    private retireCarsIn(lane: number, all = false): void {
         for (const car of this.cars) {
-            if (car.lane !== lane || car.sprite.y > this.chickenY() + 60) continue;
+            if (car.lane !== lane || (!all && car.sprite.y > this.chickenY() + 60)) continue;
             car.tween.kill();
             car.tween = gsap.to(car.sprite, {
                 alpha: 0,

@@ -1,14 +1,14 @@
 import { formatMoney, formatMult } from '../game/format.ts';
 import { payout } from '../game/rules.ts';
 import { DIFFICULTY_TITLE } from './labels.ts';
-import { useBridge, useGame } from './useGame.ts';
+import { useGameApi, useGame } from './useGame.ts';
 
 /**
  * What's at stake during a round: the bet and difficulty, the live multiplier and lane, and
  * Cash Out with the amount it pays. Lanes are tapped on the canvas itself.
  */
 export function RoundHud({ visible }: { visible: boolean }) {
-    const ui = useBridge();
+    const ui = useGameApi();
     const g = useGame();
     const value = payout(g.bet, g.currentMult);
 

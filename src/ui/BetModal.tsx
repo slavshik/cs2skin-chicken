@@ -3,7 +3,7 @@ import { formatMoney, formatMult, formatMultShort } from '../game/format.ts';
 import { type BetOp, CARS, DIFFICULTIES, laneCount, multiplier, payout } from '../game/rules.ts';
 import type { RoundResult } from '../game/GameModel.ts';
 import { DIFFICULTY_TITLE, fromInput, toInput } from './labels.ts';
-import { useBridge, useGame } from './useGame.ts';
+import { useGameApi, useGame } from './useGame.ts';
 
 const CHIPS: readonly [BetOp, string][] = [
     ['half', '1/2'],
@@ -17,7 +17,7 @@ const CHIPS: readonly [BetOp, string][] = [
  * and Go. Open while betting; after a round it leads with that round's result.
  */
 export function BetModal({ open }: { open: boolean }) {
-    const ui = useBridge();
+    const ui = useGameApi();
     const g = useGame();
     const titleId = useId();
     const goRef = useRef<HTMLButtonElement>(null);

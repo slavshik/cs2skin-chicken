@@ -1,30 +1,13 @@
 import { GlobalEventProvider } from '@dp-instant/core/GlobalEventProvider.ts';
-import { AppEvents, UiEvents } from '../app/events.ts';
-import type { GameModel, Phase, RoundResult } from '../game/GameModel.ts';
-import type { BetOp, Difficulty } from '../game/rules.ts';
-
-/** What the React layer renders: an immutable copy of the model, replaced on every change. */
-export interface GameSnapshot {
-    phase: Phase;
-    balance: number;
-    bet: number;
-    difficulty: Difficulty;
-    step: number;
-    lanes: number;
-    currentMult: number;
-    nextMult: number;
-    canBet: boolean;
-    canCashOut: boolean;
-    isBroke: boolean;
-    lastResult?: RoundResult;
-}
+import type { BetOp, Difficulty, GameApi, GameSnapshot } from '../../contract/GameApi.ts';
+import type { GameModel } from '../../game/GameModel.ts';
+import { AppEvents, UiEvents } from '../events.ts';
 
 /**
- * The only link between React (`src/ui/`) and the game: commands go out as `UiEvents`, the
- * model comes back as snapshots for `useSyncExternalStore`. React never touches Pixi or the
- * model directly.
+ * The game's side of `GameApi`: UI commands become `UiEvents` for `GameMediator`, and every
+ * `MODEL_CHANGED` publishes a fresh snapshot. The only object the React layer is handed.
  */
-export class UiBridge extends GlobalEventProvider {
+export class UiBridge extends GlobalEventProvider implements GameApi {
     private readonly model: GameModel;
     private readonly subscribers = new Set<() => void>();
     private snapshot: GameSnapshot;

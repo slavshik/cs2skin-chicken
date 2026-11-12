@@ -4,10 +4,10 @@ import '@fontsource/chakra-petch/700.css';
 import './ui.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import type { UiBridge } from './bridge.ts';
+import type { GameApi } from '../contract/GameApi.ts';
 import { BetModal } from './BetModal.tsx';
 import { RoundHud } from './RoundHud.tsx';
-import { BridgeContext, useGame } from './useGame.ts';
+import { GameContext, useGame } from './useGame.ts';
 
 function App() {
     const { phase } = useGame();
@@ -19,13 +19,13 @@ function App() {
     );
 }
 
-/** Renders the React layer (bet popup, round HUD) over the canvas. */
-export function mountUi(element: HTMLElement, bridge: UiBridge): void {
+/** Renders the React layer (bet popup, round HUD) over the canvas. It knows the game only as `GameApi`. */
+export function mountUi(element: HTMLElement, api: GameApi): void {
     createRoot(element).render(
         <StrictMode>
-            <BridgeContext.Provider value={bridge}>
+            <GameContext.Provider value={api}>
                 <App />
-            </BridgeContext.Provider>
+            </GameContext.Provider>
         </StrictMode>,
     );
 }

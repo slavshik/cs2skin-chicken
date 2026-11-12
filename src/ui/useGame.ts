@@ -1,16 +1,17 @@
 import { createContext, useContext, useSyncExternalStore } from 'react';
-import type { GameSnapshot, UiBridge } from './bridge.ts';
+import type { GameApi, GameSnapshot } from '../contract/GameApi.ts';
 
-export const BridgeContext = createContext<UiBridge | null>(null);
+export const GameContext = createContext<GameApi | null>(null);
 
-export function useBridge(): UiBridge {
-    const bridge = useContext(BridgeContext);
-    if (!bridge) throw new Error('[ui] useBridge outside <BridgeContext>');
-    return bridge;
+/** The game's command surface (`GameApi`). */
+export function useGameApi(): GameApi {
+    const api = useContext(GameContext);
+    if (!api) throw new Error('[ui] useGameApi outside <GameContext>');
+    return api;
 }
 
-/** The current game snapshot; re-renders on every model change. */
+/** The current game snapshot; re-renders on every change. */
 export function useGame(): GameSnapshot {
-    const bridge = useBridge();
-    return useSyncExternalStore(bridge.subscribe, bridge.getSnapshot);
+    const api = useGameApi();
+    return useSyncExternalStore(api.subscribe, api.getSnapshot);
 }

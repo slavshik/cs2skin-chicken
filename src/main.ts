@@ -12,7 +12,7 @@ import { TypesApp } from './app/types.ts';
 import { Sound } from './audio/Sound.ts';
 import type { GameModel } from './game/GameModel.ts';
 import { type SoundName, soundSprite } from './audio/sounds.ts';
-import { UiBridge } from './ui/bridge.ts';
+import { UiBridge } from './app/bridge/UiBridge.ts';
 import { mountUi } from './ui/mount.tsx';
 
 async function boot(): Promise<void> {
@@ -42,7 +42,7 @@ async function boot(): Promise<void> {
     di.bind(TypesApp.sound).toConstantValue(sound);
 
     await new BootAction().run();
-    // The React layer (bet popup, round HUD) sits over the canvas and talks to it via UiBridge.
+    // Composition root: the React layer gets the game only as GameApi (src/contract/).
     const ui = document.getElementById('ui');
     if (ui) mountUi(ui, new UiBridge(di.get<GameModel>(TypesApp.model)));
     // Starts the view tree: the root mediator puts the root on the stage.

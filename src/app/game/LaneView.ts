@@ -1,7 +1,8 @@
 import { gsap } from 'gsap';
 import { type BitmapText, Container, Graphics } from 'pixi.js';
 import { formatMultShort } from '../../game/format.ts';
-import { drawBarrier, drawCoin, drawManhole } from '../ui/art.ts';
+import { Frame } from '../assets.ts';
+import { art } from '../ui/art.ts';
 import { label } from '../ui/text.ts';
 import { COLOR } from '../ui/tokens.ts';
 
@@ -19,8 +20,8 @@ export class LaneView extends Container {
 
     state: LaneState = 'locked';
     readonly hole = new Container();
-    readonly coin = drawCoin();
-    readonly barrier = drawBarrier();
+    readonly coin = art(Frame.coin);
+    readonly barrier = art(Frame.barrier);
 
     private readonly bg = new Graphics();
     private readonly ring = new Graphics();
@@ -38,7 +39,7 @@ export class LaneView extends Container {
         const plate = new Graphics()
             .roundRect(-this.text.width / 2 - 5, -9, this.text.width + 10, 18, 4)
             .fill(COLOR.manhole);
-        this.hole.addChild(this.ring, drawManhole(), plate, this.text);
+        this.hole.addChild(this.ring, art(Frame.manhole), plate, this.text);
         this.hole.on('pointertap', () => {
             if (this.state === 'next') this.emit(LaneView.TAP);
         });

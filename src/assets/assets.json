@@ -1,5 +1,30 @@
 {
-    "atlases": {},
+    "atlases": {
+        "game": {
+            "src": "raw_assets/game",
+            "out": "src/assets/atlases/game",
+            "scale": 1,
+            "frames": {
+                "chicken": "chicken",
+                "car_blue": "car_blue",
+                "car_orange": "car_orange",
+                "car_red": "car_red",
+                "car_green": "car_green",
+                "car_gold": "car_gold",
+                "car_magenta": "car_magenta",
+                "car_violet": "car_violet",
+                "manhole": "manhole",
+                "coin": "coin",
+                "barrier": "barrier",
+                "blood_1": "blood_1",
+                "blood_2": "blood_2",
+                "blood_3": "blood_3",
+                "sunburst": "sunburst",
+                "sparkle": "sparkle",
+                "ring": "ring"
+            }
+        }
+    },
     "images": {
         "src": "raw_assets/images",
         "out": "src/assets/images",

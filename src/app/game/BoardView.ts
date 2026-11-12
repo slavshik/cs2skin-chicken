@@ -2,16 +2,8 @@ import { gsap } from 'gsap';
 import { Container, Graphics } from 'pixi.js';
 import { View } from '@dp-instant/2d/View.ts';
 import { type Difficulty, multiplier } from '../../game/rules.ts';
-import {
-    CAR_COLORS,
-    drawBloodSplat,
-    drawCar,
-    drawChicken,
-    drawCoin,
-    drawRing,
-    drawSparkle,
-    drawSunburst,
-} from '../ui/art.ts';
+import { Frame } from '../assets.ts';
+import { anyOf, art, BLOOD_FRAMES, CAR_FRAMES } from '../ui/art.ts';
 import { COLOR, SIZE } from '../ui/tokens.ts';
 import { laneCenterY, LaneView } from './LaneView.ts';
 
@@ -33,8 +25,9 @@ const TRAFFIC = {
 } as const;
 /** The next lane is kept at this share of the board width. */
 const FOCUS = 0.35;
-/** The blood splat left by a crash spans this many lanes. */
-const SPLAT_LANES = 1.5;
+/** Art sizes the atlas frames were drawn at (raw_assets/game), to scale them from. */
+const SUNBURST_RADIUS = 230;
+const SPARKLE_SIZE = 16;
 /** Crash shake: peak offset in px, a hair of roll in radians, and how long it rings out. */
 const SHAKE = { offset: 9, roll: 0.008, duration: 0.45 };
 /** Win sequence: rays radius, fountain coins, sparkles, and the zoom punch. */
@@ -44,7 +37,7 @@ const BODY = 28;
 const REDUCED_MOTION = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
 interface Car {
-    sprite: Graphics;
+    sprite: Container;
     lane: number;
     tween: gsap.core.Tween;
     /** px per second, so the board can tell when a car will have passed the chicken. */
@@ -73,7 +66,7 @@ export class BoardView extends View {
     private readonly fx = new Container();
     /** Screen-space effects (coin rain) over the world. */
     private readonly rain = new Container();
-    private readonly chicken = drawChicken();
+    private readonly chicken = art(Frame.chicken);
     private readonly flash = new Graphics();
 
     private lanes: LaneView[] = [];
@@ -202,7 +195,7 @@ export class BoardView extends View {
     /** A car drives through the lane and over the chicken. */
     crash(lane: number): Promise<void> {
         this.lanes[lane - 1]?.setState('crashed');
-        const car = drawCar(CAR_COLORS[lane % CAR_COLORS.length]!);
+        const car = art(CAR_FRAMES[lane % CAR_FRAMES.length]!);
         car.position.set(this.laneCenterX(lane), -60);
         this.traffic.addChild(car);
 
@@ -234,7 +227,7 @@ export class BoardView extends View {
         this.flashOnce(COLOR['sun-300'].color, 0.45, 0.5);
 
         // rays behind the chicken
-        const rays = drawSunburst(WIN.rays);
+        const rays = art(Frame.sunburst, WIN.rays / SUNBURST_RADIUS);
         rays.position.set(x, y);
         rays.scale.set(0);
         this.halo.addChild(rays);
@@ -243,7 +236,7 @@ export class BoardView extends View {
             .to(rays, { alpha: 0, duration: 0.5, ease: 'power1.in' }, 1.6);
 
         // shockwave
-        const ring = drawRing(40, 6);
+        const ring = art(Frame.ring);
         ring.tint = COLOR['grass-300'].color;
         ring.position.set(x, y);
         this.fx.addChild(ring);
@@ -292,7 +285,7 @@ export class BoardView extends View {
     /** Coins burst up from the chicken, spin, and fall away under gravity. */
     private coinFountain(tl: gsap.core.Timeline, x: number, y: number): void {
         for (let i = 0; i < WIN.coins; i++) {
-            const coin = drawCoin();
+            const coin = art(Frame.coin);
             const size = gsap.utils.random(0.3, 0.5);
             coin.scale.set(size);
             coin.position.set(x, y);
@@ -318,7 +311,7 @@ export class BoardView extends View {
         if (REDUCED_MOTION || !this.w) return;
         const count = Math.min(40, Math.round(this.w / 36));
         for (let i = 0; i < count; i++) {
-            const coin = drawCoin();
+            const coin = art(Frame.coin);
             const size = gsap.utils.random(0.25, 0.45);
             coin.scale.set(size);
             coin.position.set(gsap.utils.random(0, this.w), -40 - gsap.utils.random(0, 120));
@@ -337,7 +330,7 @@ export class BoardView extends View {
     /** White and gold twinkles pop around the chicken. */
     private sparkles(tl: gsap.core.Timeline, x: number, y: number): void {
         for (let i = 0; i < WIN.sparkles; i++) {
-            const star = drawSparkle(gsap.utils.random(8, 16));
+            const star = art(Frame.sparkle, gsap.utils.random(8, 16) / SPARKLE_SIZE);
             if (i % 2) star.tint = COLOR['sun-300'].color;
             const a = gsap.utils.random(0, Math.PI * 2);
             const d = gsap.utils.random(50, 150);
@@ -407,11 +400,11 @@ export class BoardView extends View {
         this.shake();
     }
 
-    /** Blood spreads under the chicken, one and a half lanes wide. */
+    /** Blood spreads under the chicken, one and a half nominal lanes wide (as drawn). */
     private spill(lane: number): void {
         this.clearSplat();
         this.splatLane = lane;
-        const blood = drawBloodSplat(SIZE['lane-width'] * SPLAT_LANES);
+        const blood = art(anyOf(BLOOD_FRAMES));
         this.splat.addChild(blood);
         this.layoutSplat();
         if (REDUCED_MOTION) return;
@@ -532,7 +525,7 @@ export class BoardView extends View {
         if (!this.isOnScreen(lane)) return;
         if (this.cars.some((c) => c.lane === lane && c.sprite.y < 200)) return;
 
-        const sprite = drawCar(gsap.utils.random(CAR_COLORS));
+        const sprite = art(anyOf(CAR_FRAMES));
         sprite.position.set(this.laneCenterX(lane), -60);
         this.traffic.addChild(sprite);
         const distance = this.h + 140;

@@ -6,28 +6,150 @@
             name="viewport"
             content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
         />
-        <title>CS2 Skin Chicken</title>
+        <title>Chicken Cross Road</title>
+        <link rel="icon" href="data:," />
+        <link rel="stylesheet" href="/design/tokens.css" />
+        <link rel="stylesheet" href="/design/components.css" />
         <style>
+            /* Host page: the site's chrome is a placeholder (design/components/AppShell.md). */
             html,
             body {
                 margin: 0;
-                padding: 0;
-                width: 100%;
                 height: 100%;
                 overflow: hidden;
-                background: #101418;
-                touch-action: none;
+                background: var(--bg-950);
                 user-select: none;
                 -webkit-user-select: none;
-                -webkit-touch-callout: none;
                 -webkit-tap-highlight-color: transparent;
             }
-            canvas {
+            .shell {
+                display: grid;
+                grid-template-columns: var(--chat-width) minmax(0, 1fr);
+                grid-template-rows: var(--header-height) 1fr;
+                height: 100vh;
+                height: 100dvh;
+            }
+            .shell .ccr-header {
+                min-width: 0;
+                overflow: hidden;
+            }
+            .shell .ccr-chat {
+                overflow: hidden;
+            }
+            #game {
+                position: relative;
+                min-width: 0;
+                min-height: 0;
+                overflow: hidden;
+                touch-action: none;
+            }
+            #game canvas {
+                position: absolute;
+                inset: 0;
                 display: block;
+            }
+            @media (max-width: 1023px) {
+                .shell {
+                    grid-template-columns: minmax(0, 1fr);
+                }
+                .shell .ccr-chat,
+                .ccr-support {
+                    display: none;
+                }
+            }
+            @media (max-width: 767px) {
+                .shell {
+                    grid-template-rows: 56px 1fr;
+                }
+                .shell .ccr-header {
+                    padding: 0 var(--space-400);
+                }
+                .shell .ccr-nav,
+                .shell .ccr-promo {
+                    display: none;
+                }
             }
         </style>
     </head>
     <body>
+        <div class="shell">
+            <!-- HOST SITE PLACEHOLDER: header (not part of the game) -->
+            <header class="ccr-header">
+                <div class="ccr-logo">HOST LOGO</div>
+                <nav class="ccr-nav">
+                    <div class="ccr-nav__top">
+                        <span>Affiliate</span><span>Fairness</span><span>Leaderboard</span
+                        ><span>Giveaways</span><span>EN</span>
+                    </div>
+                    <div class="ccr-nav__main">
+                        <span>Games</span><span>Sports</span><span>Marketplace</span
+                        ><span>Rewards</span>
+                    </div>
+                </nav>
+                <div class="ccr-header__right">
+                    <div class="ccr-promo">
+                        <div class="ccr-promo__icon"></div>
+                        <div>
+                            <b>Daily Giveaways</b><small>5 Active <i>07:26:48</i></small>
+                        </div>
+                    </div>
+                    <button class="ccr-btn ccr-btn--ghost ccr-btn--sm">Login</button>
+                    <button class="ccr-btn ccr-btn--primary ccr-btn--sm">Sign Up</button>
+                </div>
+            </header>
+
+            <!-- HOST SITE PLACEHOLDER: chat sidebar (not part of the game) -->
+            <aside class="ccr-chat">
+                <div class="ccr-chat__list">
+                    <div class="ccr-msg">
+                        <div class="ccr-avatar"><i>28</i></div>
+                        <div>
+                            <div class="ccr-msg__name ccr-msg__name--staff">
+                                waouZ <span class="ccr-tag">Support</span>
+                            </div>
+                            <div class="ccr-msg__text">GL :D</div>
+                        </div>
+                    </div>
+                    <div class="ccr-msg">
+                        <div class="ccr-avatar"><i>33</i></div>
+                        <div>
+                            <div class="ccr-msg__name">Garry</div>
+                            <div class="ccr-msg__text">lane 9 then out</div>
+                        </div>
+                    </div>
+                    <div class="ccr-msg">
+                        <div class="ccr-avatar"><i>52</i></div>
+                        <div>
+                            <div class="ccr-msg__name">JhonDapt</div>
+                            <div class="ccr-msg__text">Splat on lane 3 again</div>
+                        </div>
+                    </div>
+                    <div class="ccr-msg">
+                        <div class="ccr-avatar"><i>70</i></div>
+                        <div>
+                            <div class="ccr-msg__name">Vikas</div>
+                            <div class="ccr-msg__text">W cashout x12</div>
+                        </div>
+                    </div>
+                    <div class="ccr-msg">
+                        <div class="ccr-avatar"><i>21</i></div>
+                        <div>
+                            <div class="ccr-msg__name">mumi</div>
+                            <div class="ccr-msg__text">anyone to tip</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ccr-chat__input">Login to chat</div>
+                <div class="ccr-chat__foot">
+                    <span class="ccr-pill">English</span>
+                    <span class="ccr-pill"><span class="dot"></span>76 Online</span>
+                </div>
+            </aside>
+
+            <!-- THE GAME: Pixi mounts its canvas here and sizes itself to this element -->
+            <main id="game"></main>
+        </div>
+        <div class="ccr-support"></div>
         <script type="module" src="/src/main.ts"></script>
     </body>
 </html>

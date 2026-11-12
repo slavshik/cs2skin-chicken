@@ -16,8 +16,10 @@ async function boot(): Promise<void> {
     const app = new Application();
     // One ticker drives rendering, GSAP and game updates, so stopping it freezes everything.
     Ticker.shared.autoStart = false;
+    // The host page (index.html) leaves the game a stage between its header and chat.
+    const stage = document.getElementById('game') ?? document.body;
     await app.init({
-        resizeTo: window,
+        resizeTo: stage,
         background: AppRootView.BACKGROUND_COLOR,
         antialias: true,
         autoDensity: true,
@@ -26,7 +28,7 @@ async function boot(): Promise<void> {
         sharedTicker: true,
         autoStart: false,
     });
-    document.body.appendChild(app.canvas);
+    stage.appendChild(app.canvas);
     bindGsapToTicker(Ticker.shared);
 
     const sound = new Sound<SoundName>(soundSprite());

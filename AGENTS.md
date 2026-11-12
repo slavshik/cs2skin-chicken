@@ -23,6 +23,13 @@ A change is done when `make build` exits 0 with no new warnings. That target run
 - **Components.** The rules for each piece (lane states, bet panel states, result banner, etc.) are in `design/components/*.md`. `design/reference/*.html` render them in a browser. `AppShell.html` shows the host site's header and chat around the game; the game owns only the stage.
 - **Core loop.** Tap the next manhole: the lane either closes (barrier, coin, hop, multiplier up) or a car hits (round lost). Cash out between taps.
 
+## Game map
+
+- `src/game/`: pure, no Pixi. `rules.ts` (difficulties, `multiplier`, `planRound`, bet limits; money in cents, multipliers in hundredths), `GameModel.ts` (wallet and round state), `format.ts`.
+- `src/app/actions/round/`: the round flow. `PlaceBetAction` → `StepAction` (hop, then clear or crash) → `CashOutAction` → `EndRoundAction`. Each dispatches `AppEvents.MODEL_CHANGED`.
+- `src/app/game/`: `GameScreen` (+ `GameMediator`: input, keys, render) holds `HudView`, `PanelView` and `BoardView` (`LaneView`, `ResultCard`). Placeholder art is drawn in `src/app/ui/art.ts` until sprites ship.
+- `index.html` is the host site's placeholder shell (header and chat). The canvas lives in `#game` and is sized to it; `MIN_SIZE` in `src/app/layout.ts` is the size below which the stage scales down.
+
 ## Gotchas
 
 - **Assets go through the manifest.** `src/assets/assets.json` lists every asset the game uses, and `make assets` (`scripts/assets.py`: Pillow, ffmpeg, optional pngquant) builds exactly those from `raw_assets/` into atlases, images and one sound sprite. `BootAction` loads whatever was built and binds every atlas frame and image by name to a Sprite factory, so views `@inject(...)` a fresh Sprite. Name art through the constants in `src/app/assets.ts`, never as a string.

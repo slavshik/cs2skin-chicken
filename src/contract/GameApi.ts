@@ -25,6 +25,8 @@ export interface GameSnapshot {
     readonly nextMult: number;
     readonly canBet: boolean;
     readonly canCashOut: boolean;
+    /** A round is open with no lane crossed: `changeBet()` takes the stake back. */
+    readonly canChangeBet: boolean;
     readonly isBroke: boolean;
     readonly lastResult?: Readonly<RoundResult>;
     /** The last request the server refused or that failed. */
@@ -39,6 +41,8 @@ export interface GameApi {
     placeBet(): void;
     step(): void;
     cashOut(): void;
+    /** Before the first step: refund the round and reopen the bet popup. */
+    changeBet(): void;
     /** A typed stake in cents; the game clamps it. */
     setBet(cents: number): void;
     betOp(op: BetOp): void;

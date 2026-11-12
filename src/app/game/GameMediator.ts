@@ -10,6 +10,7 @@ import {
     DIFFICULTIES,
     type Difficulty,
 } from '../../game/rules.ts';
+import { CancelRoundAction } from '../actions/round/CancelRoundAction.ts';
 import { CashOutAction } from '../actions/round/CashOutAction.ts';
 import { PlaceBetAction } from '../actions/round/PlaceBetAction.ts';
 import { errorText, type RoundContext } from '../actions/round/RoundContext.ts';
@@ -36,6 +37,7 @@ export class GameMediator extends Mediator<GameScreen> {
         this.addListener(UiEvents.PLACE_BET, this.onPlaceBet);
         this.addListener(UiEvents.STEP, this.onStep);
         this.addListener(UiEvents.CASH_OUT, this.onCashOut);
+        this.addListener(UiEvents.CHANGE_BET, this.onChangeBet);
         this.addListener(UiEvents.SET_BET, this.onSetBet);
         this.addListener(UiEvents.BET_OP, this.onBetOp);
         this.addListener(UiEvents.SET_DIFFICULTY, this.onDifficulty);
@@ -66,6 +68,10 @@ export class GameMediator extends Mediator<GameScreen> {
 
     private onCashOut(): void {
         if (this.model.canCashOut) void this.run(new CashOutAction());
+    }
+
+    private onChangeBet(): void {
+        if (this.model.canChangeBet) void this.run(new CancelRoundAction());
     }
 
     private onSetBet(cents: number): void {
@@ -99,7 +105,9 @@ export class GameMediator extends Mediator<GameScreen> {
     }
 
     /** One round action at a time; input during an animation is dropped. */
-    private async run(action: PlaceBetAction | StepAction | CashOutAction): Promise<void> {
+    private async run(
+        action: PlaceBetAction | StepAction | CashOutAction | CancelRoundAction,
+    ): Promise<void> {
         if (this.running) return;
         this.running = true;
         try {

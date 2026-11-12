@@ -50,13 +50,23 @@ export type StepResult =
 
 /** Rejections carry a `code` so the client can explain them. */
 export type ServerErrorCode =
-    'bad_request' | 'insufficient_funds' | 'round_open' | 'no_round' | 'nothing_to_cash';
+    | 'bad_request'
+    | 'insufficient_funds'
+    | 'round_open'
+    | 'no_round'
+    | 'nothing_to_cash'
+    | 'round_started';
 
 export interface GameServer {
     session(): Promise<Session>;
     openRound(request: { bet: number; difficulty: Difficulty }): Promise<RoundOpened>;
     step(roundId: string, request?: { demoWin?: boolean }): Promise<StepResult>;
     cashOut(roundId: string): Promise<Settlement>;
+    /**
+     * Calls off a round before its first step and refunds the stake. The seed stays secret:
+     * nothing was played on it, so there is nothing to verify.
+     */
+    cancelRound(roundId: string): Promise<Session>;
     /** Demo only: refills a wallet that can't cover the minimum bet. */
     refill(): Promise<Session>;
 }

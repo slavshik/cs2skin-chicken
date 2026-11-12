@@ -115,6 +115,16 @@ export class MockServer implements GameServer {
         });
     }
 
+    cancelRound(roundId: string): Promise<Session> {
+        return this.reply(() => {
+            const round = this.openRoundById(roundId);
+            if (round.step > 0) fail('round_started', 'The round has already started.');
+            this.balance += round.bet;
+            this.round = undefined;
+            return { balance: this.balance };
+        });
+    }
+
     refill(): Promise<Session> {
         return this.reply(() => {
             if (this.balance < MIN_BET && !this.round) this.balance = START_BALANCE;

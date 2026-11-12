@@ -237,6 +237,28 @@
 .ui-stake {
     grid-area: stake;
     justify-self: start;
+    border: 0;
+    color: var(--text-body);
+    font-family: inherit;
+}
+.ui-stake:disabled {
+    cursor: default;
+}
+.ui-stake:enabled {
+    cursor: pointer;
+    transition: box-shadow 0.12s;
+}
+.ui-stake:enabled:hover {
+    box-shadow: inset 0 0 0 1px var(--primary-500);
+}
+.ui-stake:focus-visible {
+    outline: 2px solid var(--primary-300);
+    outline-offset: 2px;
+}
+.ui-stake__edit {
+    color: var(--primary-300);
+    font-size: 12px;
+    font-weight: 600;
 }
 
 .ui-cashout {

@@ -11,6 +11,8 @@ export const UiEvents = {
     /** Hop into the next lane. */
     STEP: 'ui.step',
     CASH_OUT: 'ui.cashOut',
+    /** Call off the open round before its first step, to change the bet. */
+    CHANGE_BET: 'ui.changeBet',
     /** Payload: stake in cents, as typed. */
     SET_BET: 'ui.setBet',
     /** Payload: a `BetOp` quick-change chip. */

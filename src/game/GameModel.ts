@@ -55,6 +55,11 @@ export class GameModel {
         return this.phase === 'live' && this.step > 0;
     }
 
+    /** A round is open but no lane is crossed yet: the stake can still be taken back. */
+    get canChangeBet(): boolean {
+        return this.phase === 'live' && this.step === 0 && !!this.roundId;
+    }
+
     get canBet(): boolean {
         return this.phase === 'idle' && this.bet >= MIN_BET && this.bet <= this.balance;
     }
@@ -70,6 +75,14 @@ export class GameModel {
         this.balance = round.balance;
         this.step = 0;
         this.error = undefined;
+    }
+
+    /** The open round was called off and its stake refunded. */
+    cancelled(balance: number): void {
+        this.balance = balance;
+        this.roundId = undefined;
+        this.seedHash = undefined;
+        this.step = 0;
     }
 
     cleared(step: number): void {

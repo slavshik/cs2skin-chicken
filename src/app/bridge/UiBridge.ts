@@ -38,6 +38,10 @@ export class UiBridge extends GlobalEventProvider implements GameApi {
         this.dispatch(UiEvents.CASH_OUT);
     }
 
+    changeBet(): void {
+        this.dispatch(UiEvents.CHANGE_BET);
+    }
+
     setBet(cents: number): void {
         this.dispatch(UiEvents.SET_BET, cents);
     }
@@ -72,6 +76,7 @@ export class UiBridge extends GlobalEventProvider implements GameApi {
             nextMult: m.nextMult,
             canBet: m.canBet,
             canCashOut: m.canCashOut,
+            canChangeBet: m.canChangeBet,
             isBroke: m.isBroke,
             lastResult: m.lastResult && { ...m.lastResult },
             error: m.error,

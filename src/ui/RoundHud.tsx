@@ -20,11 +20,21 @@ export function RoundHud({ visible }: { visible: boolean }) {
                 </span>
             </div>
 
-            <div className="ui-pill ui-stake">
+            {/* Before the first step the stake is still open: tap it to go back and change it. */}
+            <button
+                type="button"
+                className="ui-pill ui-stake"
+                disabled={!g.canChangeBet}
+                aria-label={g.canChangeBet ? 'Change bet' : undefined}
+                title={g.canChangeBet ? 'Change bet' : undefined}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => api.changeBet()}
+            >
                 <span className="ccr-coin" />
                 <b>{formatMoney(g.bet)}</b>
                 <span className="ui-pill__tag">{DIFFICULTY_TITLE[g.difficulty]}</span>
-            </div>
+                {g.canChangeBet && <span className="ui-stake__edit">Change</span>}
+            </button>
 
             <button
                 type="button"

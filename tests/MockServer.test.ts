@@ -51,3 +51,16 @@ test('normal steps follow the committed seed; Shift-click steps are safe and mar
         assert.equal((await server.session()).balance, balance);
     }
 });
+
+test('a round can be called off and refunded only before its first step', async () => {
+    const server = new MockServer();
+    const opened = await server.openRound({ bet: 100, difficulty: 'easy' });
+    assert.equal((await server.cancelRound(opened.roundId)).balance, START_BALANCE);
+    await assert.rejects(server.cancelRound(opened.roundId), { code: 'no_round' });
+
+    // Hardcore and 'demoWin' make the first step safe, so the round is still open after it.
+    const started = await server.openRound({ bet: 100, difficulty: 'hardcore' });
+    await server.step(started.roundId, { demoWin: true });
+    await assert.rejects(server.cancelRound(started.roundId), { code: 'round_started' });
+    assert.equal((await server.session()).balance, START_BALANCE - 100);
+});

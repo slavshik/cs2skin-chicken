@@ -1,8 +1,9 @@
 import { gsap } from 'gsap';
-import { Container, Graphics } from 'pixi.js';
+import { Container, Graphics, type Sprite, TilingSprite } from 'pixi.js';
+import { di } from '@dp-instant/core/di.ts';
 import { View } from '@dp-instant/2d/View.ts';
 import { type Difficulty, multiplier } from '../../game/rules.ts';
-import { Frame } from '../assets.ts';
+import { Frame, Picture } from '../assets.ts';
 import { anyOf, art, BLOOD_FRAMES, CAR_FRAMES } from '../ui/art.ts';
 import { COLOR, SIZE } from '../ui/tokens.ts';
 import { laneCenterY, LaneView } from './LaneView.ts';
@@ -25,6 +26,13 @@ const TRAFFIC = {
 } as const;
 /** The next lane is kept at this share of the board width. */
 const FOCUS = 0.35;
+/**
+ * Road markings, white paint as on a real road: dashed lines between lanes, solid lines along
+ * both edges, inset from the kerb. Px; dashes line up across lanes.
+ */
+const MARKING = { width: 4, dash: 28, gap: 24, edgeInset: 6 } as const;
+/** The asphalt texture is authored at 2× (raw_assets/images/asphalt.jpg). */
+const ASPHALT_RESOLUTION = 2;
 /** Art sizes the atlas frames were drawn at (raw_assets/game), to scale them from. */
 const SUNBURST_RADIUS = 230;
 const SPARKLE_SIZE = 16;
@@ -59,6 +67,11 @@ export class BoardView extends View {
     private readonly camera = new Container();
     private readonly track = new Container();
     private readonly ground = new Graphics();
+    /** Rough asphalt under every lane, one grey throughout. */
+    private readonly asphalt = new TilingSprite({
+        texture: di.get<Sprite>(Picture.asphalt).texture,
+    });
+    private readonly markings = new Graphics();
     private readonly lanesLayer = new Container();
     private readonly traffic = new Container();
     private readonly splat = new Container();
@@ -87,6 +100,8 @@ export class BoardView extends View {
         super();
         this.track.addChild(
             this.ground,
+            this.asphalt,
+            this.markings,
             this.lanesLayer,
             this.splat,
             this.halo,
@@ -94,6 +109,7 @@ export class BoardView extends View {
             this.traffic,
             this.fx,
         );
+        this.asphalt.tileScale.set(1 / ASPHALT_RESOLUTION);
         this.camera.addChild(this.track);
         this.addChild(this.camera, this.rain, this.flash);
         this.flash.alpha = 0;
@@ -114,7 +130,7 @@ export class BoardView extends View {
         this.difficulty = difficulty;
         for (const lane of this.lanes) lane.destroy();
         this.lanes = Array.from({ length: lanes }, (_, i) => {
-            const lane = new LaneView(i + 1, multiplier(difficulty, i + 1));
+            const lane = new LaneView(multiplier(difficulty, i + 1));
             lane.on(LaneView.TAP, () => this.emit(BoardView.LANE_TAP));
             this.lanesLayer.addChild(lane);
             return lane;
@@ -459,6 +475,10 @@ export class BoardView extends View {
             g.circle(end + 40 + ((y * 5) % 50), y + 30, 8).fill(tuft);
         }
 
+        this.asphalt.position.set(CURB, 0);
+        this.asphalt.setSize(end - CURB, h);
+        this.drawMarkings(end);
+
         this.lanes.forEach((lane, i) => {
             lane.x = CURB + i * laneW;
             lane.layout(laneW, h);
@@ -467,6 +487,20 @@ export class BoardView extends View {
         this.placeChicken(this.step);
         this.layoutSplat();
         this.scrollToNext(false);
+    }
+
+    private drawMarkings(end: number): void {
+        const { width, dash, gap, edgeInset } = MARKING;
+        const paint = COLOR['road-dash'];
+        const g = this.markings.clear();
+        g.rect(CURB + edgeInset, 0, width, this.h).fill(paint);
+        g.rect(end - edgeInset - width, 0, width, this.h).fill(paint);
+        for (let i = 1; i < this.lanes.length; i++) {
+            const x = CURB + i * this.laneW - width / 2;
+            for (let y = gap / 2; y < this.h; y += dash + gap) {
+                g.rect(x, y, width, Math.min(dash, this.h - y)).fill(paint);
+            }
+        }
     }
 
     private laneCenterX(lane: number): number {

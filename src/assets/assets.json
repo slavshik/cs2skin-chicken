@@ -28,7 +28,9 @@
     "images": {
         "src": "raw_assets/images",
         "out": "src/assets/images",
-        "files": {}
+        "files": {
+            "asphalt": "asphalt.jpg"
+        }
     },
     "sounds": {
         "src": "raw_assets/sounds",

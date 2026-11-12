@@ -96,14 +96,12 @@ export const COLOR = {
     'car-magenta': { color: 0xde3db2, alpha: 1 },
     /** Car body; also the 'boss' truck on Hardcore. */
     'car-violet': { color: 0x7d2efa, alpha: 1 },
-    /** Lane fill. */
-    'road-asphalt': { color: 0x121925, alpha: 1 },
-    /** Every other lane, for rhythm. */
-    'road-asphalt-alt': { color: 0x171e2f, alpha: 1 },
-    /** Lane-divider dashes. Decorative only. */
-    'road-dash': { color: 0xffffff, alpha: 0.14 },
-    /** Sidewalk / start strip. */
-    'road-curb': { color: 0x222d3b, alpha: 1 },
+    /** Asphalt base under the road texture (raw_assets/images/asphalt.jpg averages to it). One grey for every lane. */
+    'road-asphalt': { color: 0x41444a, alpha: 1 },
+    /** Road markings, white paint as on a real road: dashed lines between lanes, solid lines along both edges. Decorative only. */
+    'road-dash': { color: 0xeceef0, alpha: 1 },
+    /** Concrete kerb between the grass verges and the road. */
+    'road-curb': { color: 0x7c8189, alpha: 1 },
     /** Manhole cover fill — the tap target in each unopened lane, multiplier printed on it. */
     manhole: { color: 0x2b3646, alpha: 1 },
     /** Grille grooves on the manhole cover. */

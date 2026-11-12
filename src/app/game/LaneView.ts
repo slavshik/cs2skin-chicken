@@ -26,14 +26,12 @@ export class LaneView extends Container {
     private readonly bg = new Graphics();
     private readonly ring = new Graphics();
     private readonly text: BitmapText;
-    private readonly index: number;
     private pulse?: gsap.core.Tween;
     private w = 0;
     private h = 0;
 
-    constructor(index: number, mult: number) {
+    constructor(mult: number) {
         super();
-        this.index = index;
         this.text = label(formatMultShort(mult), 13, 'text-subtle', true);
         this.text.anchor.set(0.5);
         const plate = new Graphics()
@@ -128,15 +126,14 @@ export class LaneView extends Container {
         super.destroy({ children: true });
     }
 
+    /** Only the lane's state shows here; asphalt and markings belong to the board. */
     private redrawBg(): void {
-        const base = this.index % 2 === 0 ? COLOR['road-asphalt-alt'] : COLOR['road-asphalt'];
-        this.bg.clear().rect(0, 0, this.w, this.h).fill(base);
+        this.bg.clear();
         if (this.state === 'next') this.bg.rect(0, 0, this.w, this.h).fill(COLOR['primary-tint']);
-        if (this.state === 'crashed') this.bg.rect(0, 0, this.w, this.h).fill(COLOR['blood-900']);
-        if (this.index > 1) {
-            for (let y = 8; y < this.h; y += 36) {
-                this.bg.rect(-1, y, 2, 18).fill(COLOR['road-dash']);
-            }
+        if (this.state === 'crashed') {
+            this.bg
+                .rect(0, 0, this.w, this.h)
+                .fill({ color: COLOR['blood-800'].color, alpha: 0.45 });
         }
     }
 }

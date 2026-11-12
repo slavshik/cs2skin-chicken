@@ -8,7 +8,7 @@ import manifest from '../assets/assets.json';
  */
 
 /** Standalone images (src/assets/images); each is bound in `di` by its file name. */
-export const Picture: Record<string, string> = manifest.images.files;
+export const Picture = manifest.images.files;
 
 /** Frames of the `game` atlas (raw_assets/game/*.png, packed by `make assets`). */
 export const Frame = manifest.atlases.game.frames;

@@ -14,6 +14,15 @@ A change is done when `make build` exits 0 with no new warnings. That target run
 - **Flow is actions.** Game flow (rounds, steps, results) is built from `Action` subclasses. Game rules live in pure functions, separate from views, so they can be tested without rendering.
 - **One ticker.** `Ticker.shared` drives rendering and GSAP (`bindGsapToTicker`, `src/app/ticker.ts`). Animate and delay with GSAP (`gsap.to`, `gsap.delayedCall`), never `setTimeout` or `requestAnimationFrame`, so pausing the game (e.g. a hidden tab) freezes everything.
 
+## Design system
+
+`design/` holds the game's design system (a copy of the published one, adapted to this repo). Read `design/README.md` before any visual or UI work.
+
+- **Tokens are the source of truth.** Edit `design/tokens.json`, then run `make tokens`. That regenerates `src/app/ui/tokens.ts` (typed `COLOR`, `SPACE`, `RADIUS`, `SIZE`, `TYPE`) and `design/tokens.css`. Never edit either output, and never hardcode a colour hex or a magic px in a view: use `COLOR['bg-900']` (a Pixi fill) or `COLOR['sun-500'].color` (a tint).
+- **Colours mean game state.** `grass-*` = safe / win / cash out, `blood-*` = hit / loss, `sun-*` = coins and multipliers, `primary-*` = the CTA and the next tappable lane. Don't use them as decoration.
+- **Components.** The rules for each piece (lane states, bet panel states, result banner, etc.) are in `design/components/*.md`. `design/reference/*.html` render them in a browser. `AppShell.html` shows the host site's header and chat around the game; the game owns only the stage.
+- **Core loop.** Tap the next manhole: the lane either closes (barrier, coin, hop, multiplier up) or a car hits (round lost). Cash out between taps.
+
 ## Gotchas
 
 - **Assets go through the manifest.** `src/assets/assets.json` lists every asset the game uses, and `make assets` (`scripts/assets.py`: Pillow, ffmpeg, optional pngquant) builds exactly those from `raw_assets/` into atlases, images and one sound sprite. `BootAction` loads whatever was built and binds every atlas frame and image by name to a Sprite factory, so views `@inject(...)` a fresh Sprite. Name art through the constants in `src/app/assets.ts`, never as a string.

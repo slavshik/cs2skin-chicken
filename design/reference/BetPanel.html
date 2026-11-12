@@ -1,0 +1,48 @@
+<!doctype html>
+<html data-theme="night">
+    <head>
+        <link rel="stylesheet" href="../tokens.css" />
+        <link rel="stylesheet" href="../components.css" />
+        <meta charset="utf-8" />
+        <title>BetPanel — preview</title>
+    </head>
+    <body>
+        <div style="padding: var(--space-400)">
+            <div class="ccr-panel">
+                <div class="ccr-tabs" role="tablist">
+                    <button class="ccr-tab" role="tab" aria-selected="true">Manual</button>
+                    <button class="ccr-tab" role="tab" aria-selected="false">Auto</button>
+                </div>
+                <div class="ccr-panel__body">
+                    <div class="ccr-field">
+                        <label class="ccr-label">Bet Amount <b class="ccr-num">$12.50</b></label>
+                        <div class="ccr-input">
+                            <span class="ccr-coin"></span><input value="12.50" /><button
+                                class="ccr-chip"
+                            >
+                                1/2</button
+                            ><button class="ccr-chip">2x</button
+                            ><button class="ccr-chip">Max</button>
+                        </div>
+                    </div>
+                    <div class="ccr-field">
+                        <label class="ccr-label">Difficulty <b>24 lanes</b></label>
+                        <div class="ccr-seg">
+                            <button class="ccr-seg__opt">Easy</button
+                            ><button class="ccr-seg__opt" aria-pressed="true">Medium</button
+                            ><button class="ccr-seg__opt">Hard</button
+                            ><button class="ccr-seg__opt">Hardcore</button>
+                        </div>
+                    </div>
+                    <div class="ccr-stat">
+                        <span>Profit on cash out</span><b class="ccr-num">+$18.38</b>
+                    </div>
+                    <button class="ccr-btn ccr-btn--cashout ccr-btn--block">
+                        <span>Cash Out</span><span class="ccr-btn__sub ccr-num">x2.47</span>
+                    </button>
+                    <button class="ccr-btn ccr-btn--primary ccr-btn--block">Go</button>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

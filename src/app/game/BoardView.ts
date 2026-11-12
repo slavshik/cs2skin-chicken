@@ -33,6 +33,8 @@ const FOCUS = 0.35;
 const MARKING = { width: 4, dash: 28, gap: 24, edgeInset: 6 } as const;
 /** The asphalt texture is authored at 2× (raw_assets/images/asphalt.jpg). */
 const ASPHALT_RESOLUTION = 2;
+/** The chicken's size against its art (raw_assets/game/chicken.png). */
+const CHICKEN_SIZE = 1.35;
 /** Art sizes the atlas frames were drawn at (raw_assets/game), to scale them from. */
 const SUNBURST_RADIUS = 230;
 const SPARKLE_SIZE = 16;
@@ -41,7 +43,7 @@ const SHAKE = { offset: 9, roll: 0.008, duration: 0.45 };
 /** Win sequence: rays radius, fountain coins, sparkles, and the zoom punch. */
 const WIN = { rays: 230, coins: 26, sparkles: 14, zoom: 1.05, hold: 1.15 };
 /** Chicken's body centre above its feet. */
-const BODY = 28;
+const BODY = 28 * CHICKEN_SIZE;
 const REDUCED_MOTION = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
 interface Car {
@@ -79,7 +81,7 @@ export class BoardView extends View {
     private readonly fx = new Container();
     /** Screen-space effects (coin rain) over the world. */
     private readonly rain = new Container();
-    private readonly chicken = art(Frame.chicken);
+    private readonly chicken = art(Frame.chicken, CHICKEN_SIZE);
     private readonly flash = new Graphics();
 
     private lanes: LaneView[] = [];

@@ -18,8 +18,19 @@ import { laneCenterY, LaneView } from './LaneView.ts';
 /** Grass verge widths before the first lane and after the last. */
 const CURB = 96;
 const FINISH = 120;
-/** Seconds a car takes to cross a 500 px tall board, by difficulty. */
-const CAR_SPEED: Record<Difficulty, number> = { easy: 1.7, medium: 1.4, hard: 1.1, hardcore: 0.85 };
+/** Seconds a car takes to cross a 500 px tall board during a round, by difficulty. */
+const CAR_SPEED: Record<Difficulty, number> = { easy: 0.9, medium: 0.8, hard: 0.7, hardcore: 0.6 };
+/**
+ * Traffic. `gap`: seconds between cars (live round, while betting). `idleSlow`: how much slower
+ * cars drive while betting. `rushStep`: seconds between cars in the opening rush. `clearance`:
+ * px past the chicken's feet a car must be before the chicken may hop into its lane.
+ */
+const TRAFFIC = {
+    gap: { live: [0.08, 0.22], idle: [0.45, 1] },
+    idleSlow: 1.8,
+    rushStep: 0.06,
+    clearance: 60,
+} as const;
 /** The next lane is kept at this share of the board width. */
 const FOCUS = 0.35;
 /** The blood splat left by a crash spans this many lanes. */
@@ -36,6 +47,8 @@ interface Car {
     sprite: Graphics;
     lane: number;
     tween: gsap.core.Tween;
+    /** px per second, so the board can tell when a car will have passed the chicken. */
+    speed: number;
 }
 
 const play = (timeline: gsap.core.Timeline): Promise<void> =>
@@ -124,12 +137,13 @@ export class BoardView extends View {
         this.layout();
     }
 
-    /** A new round from a clean board: the first lane is armed. */
+    /** A new round from a clean board: the first lane is armed and traffic rushes in. */
     startRound(): void {
         this.resetRound();
         this.live = true;
         this.refreshStates();
         this.scrollToNext();
+        this.rush();
     }
 
     /** Back to the start: chicken on the curb, every lane locked. */
@@ -153,8 +167,12 @@ export class BoardView extends View {
         this.refreshStates();
     }
 
-    /** The chicken hops onto a lane's manhole. */
-    hopTo(lane: number): Promise<void> {
+    /**
+     * The chicken hops onto a lane's manhole, never into moving traffic: it first waits (rarely
+     * more than a few tenths of a second) until every car already in that lane has passed.
+     */
+    async hopTo(lane: number): Promise<void> {
+        await this.waitForClearLane(lane);
         const target = this.laneCenterX(lane);
         const feet = this.chickenY();
         const tl = gsap.timeline();
@@ -175,8 +193,6 @@ export class BoardView extends View {
     clearLane(lane: number): Promise<void> {
         this.step = lane;
         this.retireCarsIn(lane);
-        // The newly armed lane must stay readable: its manhole is the tap target.
-        this.retireCarsIn(lane + 1, true);
         const tl = gsap.timeline();
         this.lanes[lane - 1]?.animateClear(tl, 0);
         tl.call(() => this.refreshStates(), [], 0.2).to({}, { duration: 0.1 });
@@ -485,30 +501,50 @@ export class BoardView extends View {
         else this.track.x = x;
     }
 
-    // ---- traffic: decoration in lanes past the next one; a cleared lane's barrier stops it
+    // ---- traffic. Cars only use lanes past the next one: cleared lanes have a barrier, and the
+    // next lane gets no new cars, so the chicken never hops in front of one (see `hopTo`).
 
     private scheduleTraffic(): void {
-        this.spawner = gsap.delayedCall(gsap.utils.random(0.25, 0.8), () => {
-            this.spawnCar();
+        const [min, max] = this.live ? TRAFFIC.gap.live : TRAFFIC.gap.idle;
+        this.spawner = gsap.delayedCall(gsap.utils.random(min, max), () => {
+            this.spawnCar(gsap.utils.random(this.step + 2, this.lanes.length, 1));
             this.scheduleTraffic();
         });
     }
 
-    private spawnCar(): void {
-        const from = this.step + 2;
-        if (!this.h || from > this.lanes.length) return;
-        const lane = gsap.utils.random(from, this.lanes.length, 1);
-        const screenX = this.track.x + this.laneCenterX(lane);
-        if (screenX < -this.laneW || screenX > this.w + this.laneW) return;
-        if (this.cars.some((c) => c.lane === lane && c.sprite.y < 160)) return;
+    /** The opening rush: one car down every visible lane, in random order, in quick succession. */
+    private rush(): void {
+        const lanes = gsap.utils.shuffle(
+            Array.from({ length: this.lanes.length }, (_, i) => i + 1).filter(
+                (lane) => lane > this.step + 1 && this.isOnScreen(lane),
+            ),
+        );
+        lanes.forEach((lane, i) => {
+            const at = i * TRAFFIC.rushStep + gsap.utils.random(0, TRAFFIC.rushStep);
+            gsap.delayedCall(at, () => {
+                if (this.live && lane > this.step + 1) this.spawnCar(lane);
+            });
+        });
+    }
+
+    private spawnCar(lane: number): void {
+        if (!this.h || lane <= this.step + 1 || lane > this.lanes.length) return;
+        if (!this.isOnScreen(lane)) return;
+        if (this.cars.some((c) => c.lane === lane && c.sprite.y < 200)) return;
 
         const sprite = drawCar(gsap.utils.random(CAR_COLORS));
         sprite.position.set(this.laneCenterX(lane), -60);
         this.traffic.addChild(sprite);
-        const duration = CAR_SPEED[this.difficulty] * Math.max(0.6, this.h / 500);
+        const distance = this.h + 140;
+        const duration =
+            CAR_SPEED[this.difficulty] *
+            Math.max(0.6, this.h / 500) *
+            (this.live ? 1 : TRAFFIC.idleSlow) *
+            gsap.utils.random(0.85, 1.15);
         const car: Car = {
             sprite,
             lane,
+            speed: distance / duration,
             tween: gsap.to(sprite, {
                 y: this.h + 80,
                 duration,
@@ -519,10 +555,29 @@ export class BoardView extends View {
         this.cars.push(car);
     }
 
+    private isOnScreen(lane: number): boolean {
+        const x = this.track.x + this.laneCenterX(lane);
+        return x > -this.laneW && x < this.w + this.laneW;
+    }
+
+    /** Resolves once no car in `lane` is still above the chicken's feet plus the clearance. */
+    private waitForClearLane(lane: number): Promise<void> {
+        const line = this.chickenY() + TRAFFIC.clearance;
+        const wait = Math.max(
+            0,
+            ...this.cars
+                .filter((c) => c.lane === lane && c.sprite.y < line)
+                .map((c) => (line - c.sprite.y) / c.speed),
+        );
+        return wait > 0
+            ? new Promise((resolve) => gsap.delayedCall(wait, resolve))
+            : Promise.resolve();
+    }
+
     /** Cars still above the chicken in a lane that just closed fade out at the barrier. */
-    private retireCarsIn(lane: number, all = false): void {
+    private retireCarsIn(lane: number): void {
         for (const car of this.cars) {
-            if (car.lane !== lane || (!all && car.sprite.y > this.chickenY() + 60)) continue;
+            if (car.lane !== lane || car.sprite.y > this.chickenY() + TRAFFIC.clearance) continue;
             car.tween.kill();
             car.tween = gsap.to(car.sprite, {
                 alpha: 0,

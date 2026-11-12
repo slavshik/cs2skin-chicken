@@ -3,7 +3,7 @@
 A crash-style browser game, written as a test assignment: tap the next manhole to move the
 chicken one lane forward and raise the multiplier, or cash out before a car hits.
 
-**▶ [Play it in the browser](https://slavshik.me/cs2skin-chicken/)**
+**▶ [Play it in the browser](https://slavshik.github.io/cs2skin-chicken/)**
 
 Every push to `main` is checked, built and deployed to GitHub Pages by
 [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml).

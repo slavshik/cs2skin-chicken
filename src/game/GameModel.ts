@@ -1,15 +1,7 @@
-import {
-    DEFAULT_BET,
-    MIN_BET,
-    type Difficulty,
-    laneCount,
-    multiplier,
-    payout,
-    planRound,
-    START_BALANCE,
-} from './rules.ts';
+import type { RoundOpened, Settlement } from '../contract/ServerApi.ts';
+import { DEFAULT_BET, type Difficulty, laneCount, MIN_BET, multiplier } from './rules.ts';
 
-/** `idle`: betting; `live`: a round waits for Go or Cash Out; `busy`: an animation is playing. */
+/** `idle`: betting; `live`: a round waits for a step or Cash Out; `busy`: a request or animation. */
 export type Phase = 'idle' | 'live' | 'busy';
 
 export interface RoundResult {
@@ -22,21 +14,30 @@ export interface RoundResult {
     bet: number;
     /** The lane the round ended on: the last cleared one, or the one with the car. */
     lane: number;
+    /** The revealed seed matched the hash the server committed to when the round opened. */
+    verified: boolean;
 }
 
-/** Wallet and round state. Plain data plus transitions; the rules live in `rules.ts`. */
+/**
+ * The client's view of the game. The server owns the wallet and decides every outcome; this
+ * mirrors its replies, plus the bet and difficulty the player is choosing.
+ */
 export class GameModel {
-    balance = START_BALANCE;
+    balance = 0;
     bet = DEFAULT_BET;
     difficulty: Difficulty = 'easy';
     phase: Phase = 'idle';
     /** Lanes cleared this round. */
     step = 0;
+    /** The open round, as the server knows it. */
+    roundId?: string;
+    /** The server's commitment for the open round, checked when it ends. */
+    seedHash?: string;
     readonly history: RoundResult[] = [];
     /** The round that just ended, shown when the bet popup reopens. */
     lastResult?: RoundResult;
-    /** Lane of the round's first car. Only `isHit` reads it. */
-    private hitLane = 0;
+    /** The last request the server refused or that failed, for the UI. */
+    error?: string;
 
     get lanes(): number {
         return laneCount(this.difficulty);
@@ -55,7 +56,7 @@ export class GameModel {
     }
 
     get canBet(): boolean {
-        return this.phase === 'idle' && this.bet <= this.balance;
+        return this.phase === 'idle' && this.bet >= MIN_BET && this.bet <= this.balance;
     }
 
     /** The demo wallet cannot cover the minimum stake. */
@@ -63,41 +64,29 @@ export class GameModel {
         return this.balance < MIN_BET;
     }
 
-    /** Demo only: refills the wallet. */
-    resetBalance(): void {
-        this.balance = START_BALANCE;
-        this.bet = Math.min(this.bet, this.balance);
-    }
-
-    /** Takes the stake and draws the round's outcome. */
-    startRound(random: () => number): void {
-        if (!this.canBet) throw new Error('[model] cannot start a round now');
-        this.balance -= this.bet;
+    opened(round: RoundOpened): void {
+        this.roundId = round.roundId;
+        this.seedHash = round.seedHash;
+        this.balance = round.balance;
         this.step = 0;
-        this.hitLane = planRound(this.difficulty, random);
-        this.phase = 'live';
+        this.error = undefined;
     }
 
-    /** Whether stepping into the next lane meets a car. */
-    nextIsHit(): boolean {
-        return this.step + 1 === this.hitLane;
+    cleared(step: number): void {
+        this.step = step;
     }
 
-    clearLane(): void {
-        this.step++;
-    }
-
-    /** Ends the round: pays out the current multiplier on a win, keeps the stake on a loss. */
-    settle(won: boolean): RoundResult {
-        const mult = won ? this.currentMult : this.nextMult;
-        const paid = won ? payout(this.bet, mult) : 0;
-        this.balance += paid;
+    settled(s: Settlement, verified: boolean): RoundResult {
+        this.balance = s.balance;
+        this.roundId = undefined;
+        this.seedHash = undefined;
         const result: RoundResult = {
-            won,
-            mult,
-            paid,
-            bet: this.bet,
-            lane: won ? this.step : this.step + 1,
+            won: s.won,
+            mult: s.mult,
+            paid: s.paid,
+            bet: s.bet,
+            lane: s.lane,
+            verified,
         };
         this.lastResult = result;
         this.history.unshift(result);

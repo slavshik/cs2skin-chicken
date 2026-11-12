@@ -58,6 +58,11 @@ export function BetModal({ open }: { open: boolean }) {
                 onSubmit={submit}
             >
                 {g.lastResult && <LastResult result={g.lastResult} />}
+                {g.error && (
+                    <p className="ui-error-strip" role="alert">
+                        {g.error}
+                    </p>
+                )}
 
                 <div className="ui-field">
                     <label className="ui-label" htmlFor={`${id}-bet`}>
@@ -140,6 +145,15 @@ function LastResult({ result }: { result: Readonly<RoundResult> }) {
         <div className={`ui-result ui-result--${result.won ? 'win' : 'lose'}`} role="status">
             <span>
                 {result.won ? `Cashed out · lane ${result.lane}` : `Splat · lane ${result.lane}`}
+                {result.verified && (
+                    <span
+                        className="ui-fair"
+                        title="Provably fair: the revealed seed matches the hash the server committed to"
+                    >
+                        {' '}
+                        ✓ fair
+                    </span>
+                )}
             </span>
             <b>
                 {result.won

@@ -48,7 +48,7 @@ export const payout = (betCents: number, mult: number): number =>
 
 /**
  * The 1-based lane of the round's first car. `laneCount(d) + 1` means every lane is clear.
- * Drawn once when the round starts, so the outcome never depends on how the player plays.
+ * Drawn once when the round opens, on the server (`src/server/`), from the round's seed.
  */
 export function planRound(d: Difficulty, random: () => number): number {
     const cars = new Set<number>();
@@ -71,9 +71,4 @@ export function adjustBet(bet: number, op: BetOp, balance: number): number {
     const next =
         op === 'half' ? Math.floor(bet / 2) : op === 'double' ? bet * 2 : op === 'min' ? 0 : max;
     return Math.min(max, Math.max(MIN_BET, next));
-}
-
-/** Uniform [0, 1) from the platform CSPRNG. */
-export function secureRandom(): number {
-    return crypto.getRandomValues(new Uint32Array(1))[0]! / 2 ** 32;
 }

@@ -5,6 +5,7 @@ import type { RootView } from '@dp-instant/2d/RootView.ts';
 import { View } from '@dp-instant/2d/View.ts';
 import { Types2D } from '@dp-instant/interfaces/Types2D.ts';
 import { BootAction } from './app/actions/BootAction.ts';
+import { SessionAction } from './app/actions/SessionAction.ts';
 import { AppModule } from './app/AppModule.ts';
 import { AppRootView } from './app/root/AppRootView.ts';
 import { bindGsapToTicker } from './app/ticker.ts';
@@ -13,6 +14,7 @@ import { Sound } from './audio/Sound.ts';
 import type { GameModel } from './game/GameModel.ts';
 import { type SoundName, soundSprite } from './audio/sounds.ts';
 import { UiBridge } from './app/bridge/UiBridge.ts';
+import { MockServer } from './server/MockServer.ts';
 import { mountUi } from './ui/mount.tsx';
 
 async function boot(): Promise<void> {
@@ -40,8 +42,10 @@ async function boot(): Promise<void> {
     di.load(CoreModule, AppModule);
     di.bind(Types2D.application).toConstantValue(app);
     di.bind(TypesApp.sound).toConstantValue(sound);
+    // The game server. The client knows it only as GameServer; swap in an HTTP client to go live.
+    di.bind(TypesApp.server).toConstantValue(new MockServer());
 
-    await new BootAction().run();
+    await Promise.all([new BootAction().run(), new SessionAction().run()]);
     // Composition root: the React layer gets the game only as GameApi (src/contract/).
     const ui = document.getElementById('ui');
     if (ui) mountUi(ui, new UiBridge(di.get<GameModel>(TypesApp.model)));

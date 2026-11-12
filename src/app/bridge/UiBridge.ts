@@ -74,6 +74,7 @@ export class UiBridge extends GlobalEventProvider implements GameApi {
             canCashOut: m.canCashOut,
             isBroke: m.isBroke,
             lastResult: m.lastResult && { ...m.lastResult },
+            error: m.error,
         };
     }
 }

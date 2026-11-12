@@ -27,6 +27,8 @@ export interface GameSnapshot {
     readonly canCashOut: boolean;
     readonly isBroke: boolean;
     readonly lastResult?: Readonly<RoundResult>;
+    /** The last request the server refused or that failed. */
+    readonly error?: string;
 }
 
 /** Commands the UI may send, and the store it renders from (`useSyncExternalStore`). */

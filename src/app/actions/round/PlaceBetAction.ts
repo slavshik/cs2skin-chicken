@@ -1,16 +1,24 @@
 import { Action } from '@dp-instant/core/Action.ts';
 import { injectable } from '@dp-instant/core/injectable.ts';
-import { secureRandom } from '../../../game/rules.ts';
 import { AppEvents } from '../../events.ts';
-import type { RoundContext } from './RoundContext.ts';
+import { errorText, type RoundContext } from './RoundContext.ts';
 
-/** Takes the stake, draws the outcome, and arms the first lane on a clean board. */
+/** Asks the server to open a round with the chosen bet; on success arms the first lane. */
 @injectable()
 export class PlaceBetAction extends Action<RoundContext, void> {
-    async execute({ model, board }: RoundContext): Promise<void> {
+    async execute({ server, model, board }: RoundContext): Promise<void> {
         if (!model.canBet) return;
-        model.startRound(secureRandom);
-        board.startRound();
+        model.phase = 'busy';
+        model.error = undefined;
+        this.dispatch(AppEvents.MODEL_CHANGED);
+        try {
+            model.opened(await server.openRound({ bet: model.bet, difficulty: model.difficulty }));
+            board.startRound();
+            model.phase = 'live';
+        } catch (error) {
+            model.error = errorText(error);
+            model.phase = 'idle';
+        }
         this.dispatch(AppEvents.MODEL_CHANGED);
     }
 }

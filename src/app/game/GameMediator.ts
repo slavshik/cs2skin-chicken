@@ -1,6 +1,7 @@
 import { inject } from 'inversify';
 import { injectable } from '@dp-instant/core/injectable.ts';
 import { Mediator } from '@dp-instant/2d/Mediator.ts';
+import type { GameServer } from '../../contract/ServerApi.ts';
 import type { GameModel } from '../../game/GameModel.ts';
 import {
     adjustBet,
@@ -11,7 +12,7 @@ import {
 } from '../../game/rules.ts';
 import { CashOutAction } from '../actions/round/CashOutAction.ts';
 import { PlaceBetAction } from '../actions/round/PlaceBetAction.ts';
-import type { RoundContext } from '../actions/round/RoundContext.ts';
+import { errorText, type RoundContext } from '../actions/round/RoundContext.ts';
 import { StepAction } from '../actions/round/StepAction.ts';
 import { AppEvents, UiEvents } from '../events.ts';
 import { TypesApp } from '../types.ts';
@@ -25,6 +26,7 @@ import type { GameScreen } from './GameScreen.ts';
 @injectable()
 export class GameMediator extends Mediator<GameScreen> {
     @inject(TypesApp.model) declare readonly model: GameModel;
+    @inject(TypesApp.server) declare readonly server: GameServer;
 
     private running = false;
     private readonly onKey = (e: KeyboardEvent): void => this.handleKey(e);
@@ -51,7 +53,7 @@ export class GameMediator extends Mediator<GameScreen> {
     }
 
     private get context(): RoundContext {
-        return { model: this.model, board: this.view!.board };
+        return { server: this.server, model: this.model, board: this.view!.board };
     }
 
     private onPlaceBet(): void {
@@ -85,9 +87,14 @@ export class GameMediator extends Mediator<GameScreen> {
         this.changed();
     }
 
-    private onResetBalance(): void {
+    private async onResetBalance(): Promise<void> {
         if (this.model.phase !== 'idle' || !this.model.isBroke) return;
-        this.model.resetBalance();
+        try {
+            this.model.balance = (await this.server.refill()).balance;
+            this.model.bet = Math.min(this.model.bet, this.model.balance);
+        } catch (error) {
+            this.model.error = errorText(error);
+        }
         this.changed();
     }
 

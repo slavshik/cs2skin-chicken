@@ -1,8 +1,10 @@
 /**
  * Enforces the split between the game and its UI (run by `make check`).
  *
- * - `src/game/`     pure rules and state: imports nothing but itself.
- * - `src/contract/` the game ↔ UI interface: types from `src/game/` only.
+ * - `src/game/`     pure rules and state: imports nothing but itself (and contract types).
+ * - `src/contract/` the client ↔ UI and client ↔ server interfaces: types only.
+ * - `src/server/`   the (mock) game server: its own code, contracts and pure rules. Nothing in
+ *                   the client may import it; `src/main.ts` alone wires it in.
  * - `src/ui/`       React: may import react, fonts, `src/contract/` and pure `src/game/`;
  *                   never Pixi, GSAP, DI or anything under `src/app/`, `src/dp/`, `src/audio/`.
  * - `src/app/`, `src/dp/`, `src/audio/`: the Pixi game; never React or `src/ui/`.
@@ -11,14 +13,15 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 
-type Layer = 'game' | 'contract' | 'ui' | 'world' | 'assets' | 'root';
+type Layer = 'game' | 'contract' | 'ui' | 'world' | 'server' | 'assets' | 'root';
 
 const SRC = resolve(import.meta.dirname, '../src');
 const IMPORT = /(?:import|export)\s+(?:type\s+)?(?:[^'"]*?\s+from\s+)?['"]([^'"]+)['"]/g;
 
 /** Layers each layer may import, and the packages it may use (prefix match). */
 const RULES: Record<Layer, { layers: Layer[]; packages: string[] }> = {
-    game: { layers: ['game'], packages: [] },
+    game: { layers: ['game', 'contract'], packages: [] },
+    server: { layers: ['server', 'contract', 'game'], packages: [] },
     contract: { layers: ['contract', 'game'], packages: [] },
     ui: { layers: ['ui', 'contract', 'game'], packages: ['react', 'react-dom', '@fontsource/'] },
     world: {
@@ -34,12 +37,22 @@ const RULES: Record<Layer, { layers: Layer[]; packages: string[] }> = {
         ],
     },
     assets: { layers: ['assets'], packages: [] },
-    root: { layers: ['game', 'contract', 'ui', 'world', 'assets'], packages: ['pixi.js'] },
+    root: {
+        layers: ['game', 'contract', 'ui', 'world', 'server', 'assets'],
+        packages: ['pixi.js'],
+    },
 };
 
 function layerOf(file: string): Layer {
     const top = relative(SRC, file).split(/[\\/]/)[0];
-    if (top === 'game' || top === 'contract' || top === 'ui' || top === 'assets') return top;
+    if (
+        top === 'game' ||
+        top === 'contract' ||
+        top === 'ui' ||
+        top === 'server' ||
+        top === 'assets'
+    )
+        return top;
     if (top === 'app' || top === 'dp' || top === 'audio') return 'world';
     return 'root';
 }
@@ -79,8 +92,8 @@ for (const file of sources(SRC)) {
 
 if (errors.length) {
     console.error(
-        `[boundaries] ${errors.length} import(s) cross the game/UI split:\n${errors.join('\n')}`,
+        `[boundaries] ${errors.length} import(s) cross a layer boundary:\n${errors.join('\n')}`,
     );
     process.exit(1);
 }
-console.log('[boundaries] game, contract and UI layers are separate');
+console.log('[boundaries] client, server and UI layers are separate');

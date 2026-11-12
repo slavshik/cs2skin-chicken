@@ -1,39 +1,50 @@
 import { Action } from '@dp-instant/core/Action.ts';
 import { injectable } from '@dp-instant/core/injectable.ts';
+import type { StepResult } from '../../../contract/ServerApi.ts';
 import { AppEvents } from '../../events.ts';
-import { CashOutAction } from './CashOutAction.ts';
 import { EndRoundAction } from './EndRoundAction.ts';
-import type { RoundContext } from './RoundContext.ts';
+import { errorText, type RoundContext } from './RoundContext.ts';
+import { SettleAction } from './SettleAction.ts';
 
 /**
- * One hop into the next lane. The lane either closes (barrier, coin, multiplier up) or a car
- * hits and the stake is lost. Clearing the last lane cashes out automatically.
+ * One hop. The server decides the lane first; the board then plays what it said: the lane
+ * closes (barrier, coin, multiplier up) or a car hits. The last lane cashes out on the server.
  */
 @injectable()
 export class StepAction extends Action<RoundContext, void> {
     async execute(context: RoundContext): Promise<void> {
-        const { model, board } = context;
-        if (model.phase !== 'live') return;
+        const { server, model, board } = context;
+        if (model.phase !== 'live' || !model.roundId) return;
 
         model.phase = 'busy';
         this.dispatch(AppEvents.MODEL_CHANGED);
+        let result: StepResult;
+        try {
+            result = await server.step(model.roundId);
+        } catch (error) {
+            model.error = errorText(error);
+            model.phase = 'live';
+            this.dispatch(AppEvents.MODEL_CHANGED);
+            return;
+        }
+
         const lane = model.step + 1;
-        const hit = model.nextIsHit();
         await board.hopTo(lane);
 
-        if (hit) {
-            model.settle(false);
-            this.dispatch(AppEvents.MODEL_CHANGED);
+        if (result.outcome === 'hit') {
+            await new SettleAction().run({ ...context, settlement: result.settlement });
             await board.crash(lane);
             await new EndRoundAction().run(context);
             return;
         }
 
-        model.clearLane();
+        model.cleared(result.step);
         this.dispatch(AppEvents.MODEL_CHANGED);
         await board.clearLane(lane);
-        if (model.step >= model.lanes) {
-            await new CashOutAction().run(context);
+        if (result.settlement) {
+            await new SettleAction().run({ ...context, settlement: result.settlement });
+            await board.celebrate();
+            await new EndRoundAction().run(context);
             return;
         }
         model.phase = 'live';

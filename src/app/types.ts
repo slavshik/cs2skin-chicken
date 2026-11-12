@@ -5,6 +5,8 @@ export const TypesApp = {
     atlases: 'app.atlases',
     /** The `GameModel`: wallet and round state. */
     model: 'app.model',
-    /** The game stage view (bet panel, board, HUD). */
+    /** The `GameServer` (contract/ServerApi.ts); bound by main.ts, today to the mock server. */
+    server: 'app.server',
+    /** The game stage view (the board). */
     gameScreen: 'app.gameScreen',
 };

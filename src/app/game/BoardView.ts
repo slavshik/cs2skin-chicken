@@ -48,7 +48,7 @@ const play = (timeline: gsap.core.Timeline): Promise<void> =>
     new Promise((resolve) => timeline.eventCallback('onComplete', () => resolve()));
 
 /**
- * The game world (design/components/Lane.md): a grass curb, one lane per step, a finish verge,
+ * The game world (docs/design/components/Lane.md): a grass curb, one lane per step, a finish verge,
  * the chicken and the traffic. No UI: bet, multiplier and cash-out live in the React layer.
  * `BoardView.LANE_TAP` reports a tap on the next manhole.
  */

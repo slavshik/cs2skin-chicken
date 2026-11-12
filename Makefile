@@ -33,9 +33,9 @@ format-check: | node_modules ## Fail if any file is unformatted
 assets: ## Build src/assets/assets.json's atlases, images, sound sprite from raw_assets/
 	python3 scripts/assets.py
 
-tokens: | node_modules ## Generate src/app/ui/tokens.ts and design/tokens.css from design/tokens.json
+tokens: | node_modules ## Generate src/app/ui/tokens.ts and docs/design/tokens.css from docs/design/tokens.json
 	node scripts/tokens.ts
-	$(NPX) prettier --log-level warn --write src/app/ui/tokens.ts design/tokens.css
+	$(NPX) prettier --log-level warn --write src/app/ui/tokens.ts docs/design/tokens.css
 
 serve: | node_modules ## Serve dist/ to open the build on a device
 	$(NPX) vite preview --outDir dist

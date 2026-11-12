@@ -6,7 +6,7 @@ import { art } from '../ui/art.ts';
 import { label } from '../ui/text.ts';
 import { COLOR } from '../ui/tokens.ts';
 
-/** design/components/Lane.md: only the `next` lane takes taps. */
+/** docs/design/components/Lane.md: only the `next` lane takes taps. */
 export type LaneState = 'locked' | 'next' | 'cleared' | 'crashed';
 
 /** Height of a lane's manhole centre, as a share of the board height. */

@@ -12,7 +12,7 @@ const CHIPS: readonly [BetOp, string][] = [
 ];
 
 /**
- * The pre-round popup (design/components/BetPanel.md): stake, difficulty, Go. After a round
+ * The pre-round popup (docs/design/components/BetPanel.md): stake, difficulty, Go. After a round
  * it leads with that round's result. Kept to what the decision needs.
  */
 export function BetModal({ open }: { open: boolean }) {

@@ -84,10 +84,10 @@ The site's game art is chunky, glossy 3D-style illustration with a strong rim li
 
 ## Using in this repo
 
-`design/tokens.json` is the single source of truth. `make tokens` generates:
+`docs/design/tokens.json` is the single source of truth. `make tokens` generates:
 
 - `src/app/ui/tokens.ts`: typed `COLOR`, `SPACE`, `RADIUS`, `SIZE`, `TYPE` for Pixi
-- `design/tokens.css`: CSS variables for DOM overlays and the `design/reference/` pages
+- `docs/design/tokens.css`: CSS variables for DOM overlays and the `docs/design/reference/` pages
 
 ```ts
 import { COLOR, RADIUS, SIZE, TYPE } from '../ui/tokens.ts';
@@ -101,7 +101,7 @@ label.tint = COLOR['sun-500'].color;
 
 `shadow-*`/`glow-*` are CSS-only. In Pixi, build glows with a blurred copy or a `GlowFilter` using the matching colour.
 
-Open `design/reference/*.html` in a browser to see each component (and `AppShell.html` for the full screen inside the host shell). The component guidelines are in `design/components/*.md`.
+Open `docs/design/reference/*.html` in a browser to see each component (and `AppShell.html` for the full screen inside the host shell). The component guidelines are in `docs/design/components/*.md`.
 
 ## Accessibility
 

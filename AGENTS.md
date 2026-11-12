@@ -16,7 +16,7 @@ A change is done when `make build` exits 0 with no new warnings. That target run
 
 ## Gotchas
 
-- **Assets go through constants.** Name art through the constants in `src/app/assets.ts`, never as a string. Atlas frames are bound by frame name, so views `@inject(...)` a fresh Sprite.
+- **Assets go through the manifest.** `src/assets/assets.json` lists every asset the game uses, and `make assets` (`scripts/assets.py`: Pillow, ffmpeg, optional pngquant) builds exactly those from `raw_assets/` into atlases, images and one sound sprite. `BootAction` loads whatever was built and binds every atlas frame and image by name to a Sprite factory, so views `@inject(...)` a fresh Sprite. Name art through the constants in `src/app/assets.ts`, never as a string.
 - **Inject with `declare`.** Write injected fields as `@inject(id) declare readonly x: T`, so a class field never shadows the injected value. DI-built views take no constructor arguments.
 - **Text is bitmap text.** Draw labels with `BitmapText` and a font from `BITMAP` in `src/app/ui/fonts.ts`; colour outlined text with `tint`. Keep canvas `Text` only for what a bitmap font can't serve. New characters must be added to `CHARS` there.
 - **Audio is gesture-gated.** Play through `Sound` (`src/audio/Sound.ts`) by a typed `SoundName`. It stays muted until the first pointer gesture, as browsers require.

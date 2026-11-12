@@ -1,0 +1,14 @@
+{
+    "atlases": {},
+    "images": {
+        "src": "raw_assets/images",
+        "out": "src/assets/images",
+        "files": {}
+    },
+    "sounds": {
+        "src": "raw_assets/sounds",
+        "out": "src/assets/sounds",
+        "peakDb": -6,
+        "sprite": {}
+    }
+}

@@ -1,0 +1,31 @@
+{
+    "name": "cs2skin-chicken",
+    "version": "0.1.0",
+    "private": true,
+    "description": "Browser game on Pixi.js.",
+    "type": "module",
+    "engines": {
+        "node": ">=22.18.0"
+    },
+    "scripts": {
+        "build": "make build",
+        "dev": "make dev",
+        "check": "make check"
+    },
+    "dependencies": {
+        "@fontsource/lilita-one": "^5.3.0",
+        "eventemitter3": "^5.0.4",
+        "gsap": "^3.15.0",
+        "howler": "^2.2.4",
+        "inversify": "^8.2.3",
+        "pixi.js": "^8.21.0",
+        "reflect-metadata": "^0.2.2"
+    },
+    "devDependencies": {
+        "@types/howler": "^2.2.13",
+        "@types/node": "^26.6.2",
+        "prettier": "^3.9.8",
+        "typescript": "^7.0.2",
+        "vite": "^8.3.0"
+    }
+}

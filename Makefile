@@ -3,7 +3,7 @@
 NPX := npx --no-install
 
 .DEFAULT_GOAL := help
-.PHONY: help install dev build check typecheck boundaries format format-check assets tokens serve clean distclean
+.PHONY: help install dev build check typecheck boundaries format format-check assets tokens serve clean distclean test
 
 help: ## List targets
 	@awk 'BEGIN { FS = ":.*## " } /^[a-z][a-z-]*:.*## / { printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -16,7 +16,10 @@ dev: | node_modules ## Dev server
 build: typecheck | node_modules ## Typecheck, then build into dist/
 	$(NPX) vite build
 
-check: typecheck boundaries format-check ## Typecheck, check the game/UI split and formatting
+test: | node_modules ## Check mock-server outcomes and request ordering
+	node --test tests/*.test.ts
+
+check: typecheck boundaries format-check test ## Typecheck, check the game/UI split and formatting
 
 typecheck: | node_modules ## Typecheck without emitting
 	$(NPX) tsc --noEmit

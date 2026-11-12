@@ -25,5 +25,5 @@
             "@dp-instant/*": ["./src/dp/*"]
         }
     },
-    "include": ["src", "scripts", "vite.config.ts"]
+    "include": ["src", "scripts", "tests", "vite.config.ts"]
 }
